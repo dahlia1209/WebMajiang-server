@@ -1,139 +1,48 @@
-from typing import List, Literal
-from pydantic import AnyHttpUrl, computed_field
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from fastapi_azure_auth import B2CMultiTenantAuthorizationCodeBearer, user
-from typing import Union, Optional
-from pydantic import BaseModel, EmailStr
-from jwt.algorithms import RSAAlgorithm
 import logging
-from game import Game, get_timer
-from connection_manager import manager
-from ws_message import WsMessage
+from manager.connection_manager import ConnectionManager, WsMessage
+from manager.room_user_manager import RoomUserManager
+from manager.settings_manager import Settings
+import models.models as models
+from routers import root
+from dependencies import get_connection_manager, get_room_user_manager, get_settings
+from services import majiang_service
+from helpers.websocket_helpers import authenticate_and_manage_user, manage_game_room, notify_game_start
+
+
+from majiang_core.game import Game
+
 
 from fastapi import (
     FastAPI,
     Request,
-    HTTPException,
     Depends,
     WebSocket,
     WebSocketDisconnect,
     status,
-    Security,
     Query,
     WebSocketException,
-    Cookie,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import json
 from azure_ad_verify_token import verify_jwt
-from faker import Faker
-import random
-
-
-class Settings(BaseSettings):
-    BACKEND_CORS_ORIGINS: list[str | AnyHttpUrl] = [
-        "http://localhost:8000",
-        "http://localhost:5173",
-    ]
-    TENANT_NAME: str = ""
-    APP_CLIENT_ID: str = ""
-    APP_CLIENT_SECRET: str = ""
-    OPENAPI_CLIENT_ID: str = ""
-    AUTH_POLICY_NAME: str = ""
-    SCOPE_DESCRIPTION: str = "user_impersonation"
-    REDIRECT_URI: str = "http://localhost:8000/signin-oidc"
-    APP_CLIENT_ID: str = ""
-    AZURE_AD_ISSUER: str = ""
-    AZURE_AD_JWKS_URI: str = ""
-
-    @computed_field
-    @property
-    def SCOPE_NAME(self) -> str:
-        return f"https://{self.TENANT_NAME}.onmicrosoft.com/{self.APP_CLIENT_ID}/{self.SCOPE_DESCRIPTION}"
-
-    @computed_field
-    @property
-    def SCOPES(self) -> dict:
-        return {self.SCOPE_NAME: self.SCOPE_DESCRIPTION}
-
-    @computed_field
-    @property
-    def OPENID_CONFIG_URL(self) -> dict:
-        return f"https://{self.TENANT_NAME}.b2clogin.com/{self.TENANT_NAME}.onmicrosoft.com/{self.AUTH_POLICY_NAME}/v2.0/.well-known/openid-configuration"
-
-    @computed_field
-    @property
-    def OPENAPI_AUTHORIZATION_URL(self) -> dict:
-        return f"https://{settings.TENANT_NAME}.b2clogin.com/{settings.TENANT_NAME}.onmicrosoft.com/{settings.AUTH_POLICY_NAME}/oauth2/v2.0/authorize"
-
-    @computed_field
-    @property
-    def OPENAPI_TOKEN_URL(self) -> dict:
-        return f"https://{settings.TENANT_NAME}.b2clogin.com/{settings.TENANT_NAME}.onmicrosoft.com/{settings.AUTH_POLICY_NAME}/oauth2/v2.0/token"
-
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=True
-    )
-
-
-settings = Settings()
 
 app = FastAPI(
     swagger_ui_oauth2_redirect_url="/oauth2-redirect",
     swagger_ui_init_oauth={
         "usePkceWithAuthorizationCodeGrant": True,
-        "clientId": settings.OPENAPI_CLIENT_ID,
+        "clientId": get_settings().OPENAPI_CLIENT_ID,
     },
 )
 
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-azure_scheme = B2CMultiTenantAuthorizationCodeBearer(
-    app_client_id=settings.APP_CLIENT_ID,
-    openid_config_url=settings.OPENID_CONFIG_URL,
-    openapi_authorization_url=settings.OPENAPI_AUTHORIZATION_URL,
-    openapi_token_url=settings.OPENAPI_TOKEN_URL,
-    scopes=settings.SCOPES,
-    validate_iss=False,
-)
+app.include_router(root.router, prefix="", tags=["root"])
 
 
-@app.get("/")
-async def root(token: user.User = Depends(azure_scheme)):
-    return {"message": "Hello World"}
-
-
-class Token(BaseModel):
-    sub: str
-    name: Optional[str]
-    emails: Optional[List[EmailStr]] = None
-    tfp: str
-    nonce: str
-    scp: str
-    azp: str
-    ver: str
-    iat: int
-    aud: str
-    exp: int
-    iss: str
-    nbf: int
-
-
-async def verify_token(
-    token: str,
-):
+async def verify_token(token: str, settings: Settings = Depends(get_settings)):
     if token is None:
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
     try:
-        verifed_jwt = Token(
+        verifed_jwt = models.Token(
             **verify_jwt(
                 token=token,
                 valid_audiences=[settings.APP_CLIENT_ID],
@@ -151,269 +60,256 @@ async def verify_token(
         )
 
 
-class User(BaseModel):
-    uid: str
-    name: str
-
-    @staticmethod
-    def generate_fake_name(locale="ja_JP"):
-        fake = Faker(locale)
-        return fake.name()
-
-
 def debug_log(*args):
     logging.debug(" ".join(map(str, args)))
 
-
-async def send_room_info(room_no):
-    if room_no not in ROOM:
-        return
-
-    room = ROOM[room_no]
-    for uid in room["uids"]:
-        user_info = USER.get(uid)
-        if not user_info:
-            continue
-
-        sock = user_info.get("sock")
-        if not sock:
-            continue
-
-        message = WsMessage(
-            event_name="ROOM",
-            content={
-                "room_no": room_no,
-                "user": [
-                    {**USER[uid]["user"], "offline": USER[uid].get("sock") is None}
-                    for uid in room["uids"]
-                ],
-            },
-        )
-        await manager.send_personal_message(
-            websocket=sock,message=message.model_dump_json()
-        )
-
-    debug_log(
-        room_no,
-        [
-            ("+ " if USER[uid].get("sock") else "- ") + USER[uid]["user"]["name"]
-            for uid in room["uids"]
-        ],
-    )
-    return
-
-def get_room_no():
-    MAX = 260000
-    while True:
-        n = random.randint(0, MAX - 1)
-        room_no = chr(65 + (n // 10000)) + "{:04}".format(n % 10000)
-        if room_no not in ROOM:
-            return room_no
-
-def get_socks(room_no: int) -> List:
-    uids = [ROOM[room_no]['uids'][i] if i < len(ROOM[room_no]['uids']) else None for i in range(4)]
-    socks = []
-    
-    user_data = {uid: {key: value for key, value in user.items() if key != 'sock'} for uid, user in USER.items()}
-    # while len(socks) < 4:
-        
-    #     uid = uids.pop(int(random.random() * len(uids)))
-    #     socks.append(USER[uid]['sock'] if uid else None)
-    for key, value in USER.items():
-        if value['room_no'] == room_no:
-            socks.append({
-                "user": value["user"],
-                "sock": value["sock"]
-            })
-    while len(socks) < 4:
-        socks.append(None)
-    
-    print("socks",socks)
-    return socks
 
 def status_log():
     # ステータスログのためのロジックを実装
     pass
 
 
-ROOM = {}
-USER = {}
-
-
 @app.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
     token: str = Query(..., alias="token"),
-    verified_token: Token = Depends(verify_token),
+    verified_token: models.Token = Depends(verify_token),
+    connection_manager: ConnectionManager = Depends(get_connection_manager),
+    room_user_manager: RoomUserManager = Depends(get_room_user_manager),
 ):
-    await manager.connect(websocket)
-    user = User(
-        uid=verified_token.sub, name=verified_token.name or User.generate_fake_name()
-    )
-    message = WsMessage(event_name="HELLO", content=user.model_dump())
-    await manager.send_personal_message(
-        message=message.model_dump_json(), websocket=websocket
-    )
-    if not user:
-        await manager.disconnect(websocket)
-        return
-    debug_log(f"++ connect: {user.name}")
-    if user.uid not in USER:
-        USER[user.uid] = {"user": user.model_dump(), "sock": websocket}
-    elif USER[user.uid].get("sock"):
-        message = WsMessage(event_name="ERROR", content="既に接続済みです")
-        await manager.send_personal_message(message=message, websocket=websocket)
-        await manager.disconnect(websocket)
-        return
-    else:
-        USER[user.uid]["sock"] = websocket
-        room_no = USER[user.uid].get("room_no")
-        if room_no in ROOM and "game" in ROOM[room_no]:
-            ROOM[room_no]["game"].connect(websocket)
-        else:
-            await send_room_info(room_no)
+    # 1. WebSocket接続の確立
+    await connection_manager.connect(websocket)
+
+    # 2. ユーザー認証と情報管理
+    user = authenticate_and_manage_user(verified_token, websocket, room_user_manager)
+
+    # 3. ゲームルームの管理
+    room = manage_game_room(user, room_user_manager)
+
+    # 4. ゲーム開始通知（必要な場合）
+    print("room.users",room.users)
+    if len(room.users) == 1:
+        await notify_game_start(room, connection_manager, room_user_manager)
+    
+
     try:
         while True:
-            data = await websocket.receive_text()
-            message = WsMessage.model_validate_json(data)
+            recieved_data = await websocket.receive_text()
+            message = WsMessage.model_validate_json(recieved_data)
+            print(message.model_dump_json())
+
             if message.event_name == "HELLO":
-                await manager.send_personal_message(
-                    message.model_dump_json(), websocket=websocket
-                )
-            elif message.event_name == "ROOM":
-                if not user:
-                    return
-
-                uid = message.content.get("uid", None)
-                room_no = message.content.get("room_no", None)
-                if uid:
-                    if room_no not in ROOM:
-                        return
-                    if uid == user.uid and ROOM[room_no]["uids"][0] == user.uid:
-                        for uid in ROOM[room_no]["uids"]:
-                            if USER[uid]["room_no"] == room_no:
-                                del USER[uid]["room_no"]
-                                if "sock" in USER[uid]:
-                                    await USER[uid]["sock"].send_json(
-                                        {"HELLO": USER[uid]["user"]}
-                                    )
-                                else:
-                                    del USER[uid]
-                        del ROOM[room_no]
-                        debug_log(
-                            "ROOM:",
-                            [
-                                f"{('* ' if ROOM[r].get('game') else '')}{r}"
-                                for r in ROOM
-                            ],
-                        )
-                    elif uid == user.uid or ROOM[room_no]["uids"][0] == user.uid:
-                        if USER[uid]["room_no"] == room_no:
-                            ROOM[room_no]["uids"] = [
-                                u for u in ROOM[room_no]["uids"] if u != uid
-                            ]
-                            del USER[uid]["room_no"]
-                            if "sock" in USER[uid]:
-                                await USER[uid]["sock"].send_json(
-                                    {"HELLO": USER[uid]["user"]}
-                                )
-                            else:
-                                del USER[uid]
-                            await send_room_info(room_no)
-                elif user.uid in USER and "room_no" in USER[user.uid]:
-                    message = WsMessage(event_name="ERROR", content="既に入室済みです")
-                    await manager.send_personal_message(
-                        message=message.model_dump_json(), websocket=websocket
-                    )
-                    await manager.disconnect()
-                elif room_no:
-                    if room_no in ROOM:
-                        if len(ROOM[room_no]["uids"]) >= 4:
-                            message = WsMessage(event_name="ERROR", content="満室です")
-                            await manager.send_personal_message(
-                                message=message.model_dump_json(), websocket=websocket
-                            )
-                            return
-                        ROOM[room_no]["uids"].append(user.uid)
-                        USER[user.uid]["room_no"] = room_no
-                        await  send_room_info(room_no)
-                    else:
-                        message = WsMessage(
-                            event_name="ERROR",
-                            content=f"ルーム {room_no} は存在しません",
-                        )
-                        await manager.send_personal_message(
-                            message=message.model_dump_json(), websocket=websocket
-                        )
-                else:
-                    room_no = get_room_no()
-                    ROOM[room_no] = {"uids": [user.uid]}
-                    USER[user.uid]["room_no"] = room_no
-                    debug_log(
-                        "ROOM:",
-                        [f"{('* ' if ROOM[r].get('game') else '')}{r}" for r in ROOM],
-                    )
-                    await send_room_info(room_no)
-                    # sock.on("START", start_handler(sock, room_no))  定義すること！！！！
-
-                status_log()
-            elif message.event_name == "START":
-                room_no=message.content.get("room_no")
-                rule=message.content.get("rule")
-                timer=message.content.get("timer")
-                if room_no in ROOM and ROOM[room_no]['uids'][0] == user.uid:
-                    if 'game' in ROOM[room_no]:
-                        return
-                    
-                    async def callback(paipu):
-                        for uid in ROOM[room_no]['uids']:
-                            if 'sock' not in USER[uid]:
-                                del USER[uid]
-                            else:
-                                del USER[uid]['room_no']
-                        del ROOM[room_no]
-                        debug_log('<< end:', room_no)
-                        debug_log('ROOM:', ['* ' + str(rn) if 'game' in ROOM[rn] else str(rn) for rn in ROOM.keys()])
-                        status_log()
-
-                    print("get_socks(room_no)",get_socks(room_no))
-                    ROOM[room_no]['game'] = Game(get_socks(room_no), callback, rule, None, timer)
-                    await ROOM[room_no]['game'].initialize()
-                    ROOM[room_no]['game'].speed = 2
-                    await ROOM[room_no]['game'].kaiju()
-                    debug_log('>> start:', room_no)
-                    debug_log('ROOM:', ['* ' + str(rn) if 'game' in ROOM[rn] else str(rn) for rn in ROOM.keys()])
-                    status_log()
-                print(message)
-                await manager.send_personal_message(
-                    message.model_dump_json(), websocket=websocket
+                await connection_manager.send_personal_message(
+                    message=message, websocket=websocket
                 )
             elif message.event_name == "GAME":
-                def find_user_by_uid(socks,uid):
-                    for s in socks:
-                        if s and 'user' in s and s['user'].get('uid') == uid:
-                            return s['user']
-                        return None
-                    
-                room_no=message.content.get("room_no")
-                reply=message.content.get("reply")
-                
-                if room_no not in ROOM or 'game' not in ROOM[room_no]:
-                    return
-                game=ROOM[room_no]['game']
-                uid=message.content.get("uid",None)
-                socks=get_socks(room_no)
-                user=find_user_by_uid(socks,uid)
-                if not user:
-                    return
-                game.reply(uid, reply)
+                room = room_user_manager.get_room(user_uid=verified_token.sub)
+                if message.content["action"] == "game_info":
+                    # room.game = Game.model_validate(message.content["game"])
+                    # room.game.players[0].user = room_user_manager.get_user(
+                    #     verified_token.sub
+                    # )
+                    pass
+                elif message.content["action"] == "kaiju":
+                    room.game = Game.model_validate(message.content["game"])
+                    room.game.players[0].user = room_user_manager.get_user(
+                        verified_token.sub
+                    )
+                    room.game.kaiju()
+                    response = WsMessage(
+                        event_name="GAME",
+                        content={
+                            "action": "call_players",
+                            "param": {
+                                "type": "kaiju",
+                                "msg": room.game.msg,
+                                "timeout": 0,
+                            },
+                            "update": {
+                                "qijia": room.game.model.qijia,
+                                "max_jushu": room.game.max_jushu,
+                                "paipu": room.game.paipu,
+                            },
+                        },
+                    )
+                    room.game.reply = [None] * 4
+                    await connection_manager.send_personal_message(
+                        message=response, websocket=websocket
+                    )
+                elif message.content["action"] == "reply":
+                    param = message.content.get("param")
+                    if isinstance(param, dict):
+                        room.game.reply[param.get("id")] = param.get("reply") or {}
+                        room.game.reply_count += 1
+                        print("room.game.reply_count", room.game.reply_count)
+                    if room.game.reply_count == 4:
+                        response = WsMessage(
+                            event_name="GAME",
+                            content={
+                                "action": "next",
+                                "update": {"reply": room.game.reply},
+                            },
+                        )
+                        await connection_manager.send_personal_message(
+                            message=response, websocket=websocket
+                        )
+                        room.game.reply_count = 0
+                elif message.content["action"] == "qipai":
+                    room.game.qipai()
+                    response = WsMessage(
+                        event_name="GAME",
+                        content={
+                            "action": "call_players",
+                            "param": {
+                                "type": "qipai",
+                                "msg": room.game.msg,
+                                "timeout": 0,
+                            },
+                            "update": {
+                                "model": room.game.model,
+                                "diyizimo": room.game.diyizimo,
+                                "fengpai": room.game.fengpai,
+                                "dapai": room.game.dapai_pai,
+                                "gang": room.game.gang_pai,
+                                "lizhi": room.game.lizhi,
+                                "yifa": room.game.yifa,
+                                "n_gang": room.game.n_gang,
+                                "neng_rong": room.game.neng_rong,
+                                "hule": room.game.hule_pai,
+                                "hule_option": room.game.hule_option,
+                                "no_game": room.game.no_game,
+                                "lianzhuang": room.game.lianzhuang,
+                                "changbang": room.game.changbang,
+                                "fenpei": room.game.fenpei,
+                                "defen": room.game.paipu.defen,
+                                "log": room.game.paipu.log,
+                            },
+                        },
+                    )
+                    room.game.reply = [None] * 4
+                    await connection_manager.send_personal_message(
+                        message=response, websocket=websocket
+                    )
+                elif message.content["action"] == "zimo":
+                    paipu = room.game.zimo()
+                    response = WsMessage(
+                        event_name="GAME",
+                        content={
+                            "action": "call_players",
+                            "param": {
+                                "type": "zimo",
+                                "msg": room.game.msg,
+                                "timeout": None,
+                            },
+                            "update": {
+                                "model": {
+                                    "lunban": room.game.model.lunban,
+                                    "shoupai": [item.model_dump(by_alias=True) for item in room.game.model.shoupai],
+                                    "shan": room.game.model.shan,
+                                },
+                                "paipu": room.game.paipu,
+                                "view": paipu,
+                            },
+                        },
+                    )
+                    await connection_manager.send_personal_message(
+                        message=response, websocket=websocket
+                    )
+                elif message.content["action"] == "dapai":
+                    param = message.content.get("param")
+                    if isinstance(param, dict):
+                        dapai = param.get("dapai")
+                        recieved_data = param.get("update")
+                        room.game.model.update_shoupai(
+                            recieved_data["model"]["shoupai"]
+                        )
+                        room.game.model.update_he(recieved_data["model"]["he"])
+                        # room.game.model.update_shan(recieved_data["model"]["shan"])
+                        room.game.model.lunban = recieved_data["model"]["lunban"]
+                        update_val = room.game.dapai(dapai)
+                        response = WsMessage(
+                            event_name="GAME",
+                            content={
+                                "action": "call_players",
+                                "param": {
+                                    "type": "dapai",
+                                    "msg": room.game.msg,
+                                    "timeout": None,
+                                },
+                                "update": update_val,
+                            },
+                        )
+                        await connection_manager.send_personal_message(
+                            message=response, websocket=websocket
+                        )
+                elif message.content["action"] == "fulou":
+                    param = message.content.get("param")
+                    if isinstance(param, dict):
+                        fulou = param.get("fulou")
+                        update_val = await room.game.fulou(fulou)
+                        response = WsMessage(
+                            event_name="GAME",
+                            content={
+                                "action": "call_players",
+                                "param": {
+                                    "type": "fulou",
+                                    "msg": room.game.msg,
+                                    "timeout": None,
+                                },
+                                "update": update_val,
+                            },
+                        )
+                        await connection_manager.send_personal_message(
+                            message=response, websocket=websocket
+                        )
+                elif message.content["action"] == "hule":
+                    param = message.content.get("param")
+                    if isinstance(param, dict):
+                        update_val = await room.game.hule()
+                        response = WsMessage(
+                            event_name="GAME",
+                            content={
+                                "action": "call_players",
+                                "param": {
+                                    "type": "hule",
+                                    "msg": room.game.msg,
+                                    "timeout": room.game.wait,
+                                },
+                                "update": update_val,
+                            },
+                        )
+                        await connection_manager.send_personal_message(
+                            message=response, websocket=websocket
+                        )
+                elif message.content["action"] == "gang":
+                    param = message.content.get("param")
+                    if isinstance(param, dict):
+                        gang = param.get("gang")
+                        update_val = await room.game.gang(gang)
+                        response = WsMessage(
+                            event_name="GAME",
+                            content={
+                                "action": "call_players",
+                                "param": {
+                                    "type": "fulou",
+                                    "msg": room.game.msg,
+                                    "timeout": None,
+                                },
+                                "update": update_val,
+                            },
+                        )
+                        await connection_manager.send_personal_message(
+                            message=response, websocket=websocket
+                        )
+                        
+                        
 
     except WebSocketDisconnect as e:
-        print("WebSocketDisconnect",e)
-        manager.disconnect(websocket)
-        
+        print("WebSocketDisconnect", e)
+        connection_manager.disconnect(websocket)
+
         message = {"time": "", "message": "Offline"}
-        await manager.broadcast(json.dumps(message))
+        await connection_manager.broadcast(json.dumps(message))
 
 
 @app.post("/auth/")
