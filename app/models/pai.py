@@ -35,4 +35,22 @@ class Pai(BaseModel):
             return self.num == other.num and self.suit == other.suit and self.is_red == other.is_red 
         return False
     
+    def serialize(self):
+        return str(self.suit)+str(self.num)+('t' if self.is_red else 'f')
+    
+    @classmethod
+    def deserialize(cls, string: str) -> "Pai":
+        if len(string) < 2 or len(string) > 3:
+            raise ValueError("文字数は2~3文字にしてください")
+        
+        try:
+            suit = string[0]  # PaiSuitは文字列リテラル型として定義されていると仮定
+            num = int(string[1])
+            is_red = len(string) == 3 and string[2] == "t"
+            return cls(suit=suit, num=num, is_red=is_red)
+        except Exception as e:
+            print("error")  # または logging.error("error") を使用
+            raise ValueError(f"正しい文字を指定してください。与えられた文字:{string}")
+        
+    
     

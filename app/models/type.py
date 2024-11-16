@@ -3,7 +3,11 @@ from typing import List, Dict, Tuple, Literal, Optional
 
 Feng = Literal["東", "南", "西", "北"]
 
-PaiSuit = Literal["m", "p", "s", "z"]
+PaiSuit = Literal["b","m", "p", "s", "z"]
 
-PlayerAction = Literal["zimo", "dapai", "fulou", "hule", "lingshangzimo"]
+PlayerAction = Literal["zimo", "dapai", "fulou", "hule", "lingshangzimo","kaiju"]
+
+Position=Literal["main","xiajia","duimian","shangjia"]
+
+PlayerStatus=Literal["thinking","ready"]
 

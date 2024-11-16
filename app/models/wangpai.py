@@ -6,7 +6,7 @@ from .pai import Pai
 class Wangpai(BaseModel):
     lingshangpai: List[Pai] = Field(default=[])
     baopai: List[Pai] = Field(default=[])
-    flipped_baopai: List[bool] = Field(default=[])
+    flipped_baopai: List[bool] = Field(default=[True,False,False,False,False])
     libaopai: List[Pai] = Field(default=[])
 
     def pop_lingshangpai(self):
@@ -88,4 +88,11 @@ class Wangpai(BaseModel):
         if is_lizhi:
             zhenbaopai.extend(self.get_zhenbaopai(self.libaopai))
         return zhenbaopai
+
+    def get_baopai(self):
+        baopai=[]
+        for i,p in enumerate(self.baopai):
+             baopai.append(p) if self.flipped_baopai[i] else baopai.append(Pai(suit="b",num=0))
+        return baopai
+        
        

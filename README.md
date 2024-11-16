@@ -1,5 +1,8 @@
+## アプリケーション起動
+cd C:\src\WebMajiang-server
 .\env\Scripts\Activate.ps1
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 
 ## テスト
-pytest
+cd C:\src\WebMajiang-server\tests
+pytest -v

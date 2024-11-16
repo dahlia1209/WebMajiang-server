@@ -7,7 +7,7 @@ from .pai import Pai
 class Shan(BaseModel):
     pais: List[Pai] = Field(default=[])
 
-    def pop(self) -> Optional[Pai]:
+    def pop(self) -> Pai:
         if len(self.pais) == 0:
             raise ValueError("山牌がありません")
         pai = self.pais.pop()

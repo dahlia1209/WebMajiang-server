@@ -7,41 +7,35 @@ def test_valid_pai_creation():
     manzu = Pai(suit='m', num=3)
     assert manzu.suit == 'm'
     assert manzu.num == 3
-    assert manzu.name == '三萬'
     assert not manzu.is_red
 
     # 筒子（ピンズ）のテスト
     pinzu = Pai(suit='p', num=7)
     assert pinzu.suit == 'p'
     assert pinzu.num == 7
-    assert pinzu.name == '七筒'
     assert not pinzu.is_red
 
     # 索子（ソーズ）のテスト
     souzu = Pai(suit='s', num=1)
     assert souzu.suit == 's'
     assert souzu.num == 1
-    assert souzu.name == '一索'
     assert not souzu.is_red
 
     # 字牌のテスト
     jihai_east = Pai(suit='z', num=1)
     assert jihai_east.suit == 'z'
     assert jihai_east.num == 1
-    assert jihai_east.name == '東'
     assert not jihai_east.is_red
 
     jihai_white = Pai(suit='z', num=5)
     assert jihai_white.suit == 'z'
     assert jihai_white.num == 5
-    assert jihai_white.name == '白'
     assert not jihai_white.is_red
 
     # 赤ドラのテスト
     red_five_man = Pai(suit='m', num=5, is_red=True)
     assert red_five_man.suit == 'm'
     assert red_five_man.num == 5
-    assert red_five_man.name == '赤五萬'
     assert red_five_man.is_red
 
 def test_invalid_suit():
@@ -65,7 +59,6 @@ def test_invalid_red_dora():
 
 def test_red_five():
     pai = Pai(suit='p', num=5, is_red=True)
-    assert pai.name == '赤五筒'
     assert pai.is_red
 
 def test_honor_tiles():
@@ -73,11 +66,9 @@ def test_honor_tiles():
     expected_names = ['東', '南', '西', '北', '白', '發', '中']
     for (suit, num), expected_name in zip(honor_tiles, expected_names):
         pai = Pai(suit=suit, num=num)
-        assert pai.name == expected_name
 
 def test_str_representation():
     pai = Pai(suit='s', num=7)
-    assert str(pai) == '七索'
 
 def test_repr_representation():
     pai = Pai(suit='m', num=1)

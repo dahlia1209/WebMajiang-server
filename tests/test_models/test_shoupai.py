@@ -106,6 +106,7 @@ def test_set_zimo():
     )
     shoupai=Shoupai(bingpai=pais)
     zimopai=Pai(suit='m',num=1)
+    shoupai.zimopai=None
     shoupai.set_zimopai(zimopai)
     assert shoupai.zimopai == Pai(suit="m", num=1)
     shoupai.remove_pai_from_zimopai()
@@ -155,6 +156,16 @@ def test_do_chi():
     fulou_pai = shoupai.get_fulou_pai(nakipai)
     shoupai.do_fulou(fulou_pai[0])
     assert len(shoupai.fulou) == 1
+
+# def test_fulou_koho():
+#     # 1回目のチー
+#     pais = create_pais(
+#         ["1m", "1m","1m","2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "9m", "9m"]
+#     )
+#     shoupai = Shoupai(bingpai=pais)
+#     shoupai.set_fulou_pai_from_shoupai()
+#     [print(f.model_dump_json()) for f in shoupai.waiting_fulou_pai]
+#     assert 2 == 1
 
 
 def test_do_peng(sample_shoupai_for_peng_test):

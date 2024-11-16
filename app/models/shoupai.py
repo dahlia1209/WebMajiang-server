@@ -16,7 +16,7 @@ class Fulou(BaseModel):
 class Shoupai(BaseModel):
     bingpai: List[Pai] = Field(default=[])
     fulou: List[Fulou] = Field(default=[])
-    zimopai: Pai = Field(default=None)
+    zimopai: Optional[Pai] = Field(default=None)
     waiting_hule_pai: List[Pai] = Field(default=[])
     waiting_fulou_pai: List[Fulou] = Field(default=[])
 
