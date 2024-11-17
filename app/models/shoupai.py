@@ -2,16 +2,36 @@ from pydantic import BaseModel, Field, PrivateAttr
 from typing import List, Dict, Tuple, Literal, Optional
 from .pai import Pai
 from collections import defaultdict
-
+from .type import Feng, PlayerAction, Position
 
 FulouType = Literal["chi", "peng", "minggang", "angang", "jiagang"]
 
 
 class Fulou(BaseModel):
     type: FulouType
-    nakipai: Optional[Pai]
-    fuloupais: List[Pai]
+    nakipai: Optional[Pai]=Field(default=None)
+    fuloupais: Optional[List[Pai]]=Field(default=[])
+    position: Optional[Position]=Field(default=None)
+    
+    def serialize(self) -> str:
+        ns = self.nakipai.serialize() if self.nakipai else "null"
+        fs = "+".join(p.serialize() for p in self.fuloupais) if self.fuloupais else "null"
+        ps = self.position if self.position else "null"
+        s = ",".join([str(self.type), ns, fs, ps])
+        return s
 
+    @staticmethod
+    def deserialize(s: str) -> "Fulou":
+        ss = s.split(",")
+        if len(ss) != 4:
+            raise ValueError(f"指定した文字列に誤りがあります:{s}")
+        
+        t = ss[0]  # FulouType
+        n = None if ss[1] == "null" else Pai.deserialize(ss[1])  
+        f = [] if ss[2] == "null" else [Pai.deserialize(fs) for fs in ss[2].split("+")] 
+        p = None if ss[3] == "null" else ss[3]  
+        
+        return Fulou(type=t, nakipai=n, fuloupais=f, position=p)
 
 class Shoupai(BaseModel):
     bingpai: List[Pai] = Field(default=[])

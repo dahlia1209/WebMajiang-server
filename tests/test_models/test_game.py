@@ -31,10 +31,12 @@ def test_qipai():
         assert (
             next_game.players[i].shoupai.bingpai[0]
             != old_game.players[i].shoupai.bingpai[0]
-            or next_game.players[i].shoupai.bingpai[13]
-            != old_game.players[i].shoupai.bingpai[13]
+            or next_game.players[i].shoupai.bingpai[12]
+            != old_game.players[i].shoupai.bingpai[12]
         )
         assert next_game.players[i].menfeng == old_game.players[i].menfeng
+        assert len(next_game.players[i].shoupai.bingpai)==13
+        assert len(old_game.players[i].shoupai.bingpai)==13
 
     for i in range(4):
         old_game.players[i].he.add_pai(p for p in [Pai(suit="m",num=1),Pai(suit="m",num=2),Pai(suit="m",num=3),Pai(suit="m",num=4)])
@@ -97,8 +99,6 @@ def get_turn():
                 assert game.get_turn(i)==["main","xiajia","duimian","shangjia"][feng.index(mf)-feng.index(te)]
     
 
-            
-        
     
 
     

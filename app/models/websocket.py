@@ -9,31 +9,34 @@ class WebSocketModel(BaseModel):
     
     model_config = ConfigDict(arbitrary_types_allowed=True)
     
-MessageType = Literal["message","game"]
+MessageType = Literal["message","game","score"]
+
+
+# ゲームの状態を表すモデル
+class GameState(BaseModel):
+    action: Optional[PlayerAction] = Field(default=None)
+    turn: Optional[Position] = Field(default=None)
+    status: Optional[PlayerStatus] = Field(default=None)
+    dapai: Optional[str] = Field(default=None)
+    zimopai: Optional[str] = Field(default=None)
+    canFulouList: Optional[List[str]] = Field(default=[])
+    fulou: Optional[str] = Field(default=None)
+    qipai: Optional[str] = Field(default=None)
+    
+class ScoreContent(BaseModel):
+    zhuangfeng: Optional[Feng] = Field(default="東")
+    menfeng: Optional[Feng] = Field(default="東")
+    jushu: Optional[int] = Field(default=1)
+    jicun: Optional[int] = Field(default=0)
+    changbang: Optional[int] = Field(default=0)
+    defen: Optional[List[int]] = Field(default=[25000,25000,25000,25000])
+    baopai: Optional[List[str]] = Field(default=["b0","b0","b0","b0","b0"])
 
 # ベースメッセージモデル
 class BaseMessage(BaseModel):
     type: MessageType
+    # msg:Union[GameState,ScoreContent]
 
-# ゲームの状態を表すモデル
-class GameState(BaseModel):
-    action: Optional[PlayerAction] = None
-    turn: Optional[Position] = None
-    status: Optional[PlayerStatus] = None
-    dapai: Optional[str] = None
-    zimopai: Optional[str] = None
-    canFulouList: Optional[List[str]] = None
-    fulou: Optional[str] = None
-    qipai: Optional[str] = None
-    
-class ScoreContent(BaseModel):
-    zhuangfeng: Optional[Feng] = None
-    menfeng: Optional[Feng] = None
-    jushu: Optional[int] = None
-    jicun: Optional[int] = None
-    changbang: Optional[int] = None
-    defen: Optional[List[int]] = None
-    baopai: Optional[List[str]] = None
 
 # ゲームメッセージモデル
 class GameMessage(BaseMessage):

@@ -1,8 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ValidationError
 from typing import Literal, Dict, Any, List, Union,Optional
-from app.config import Store
-from app.models.websocket import WebSocketModel,WebSocketMessage
+from app.models.websocket import WebSocketMessage
 from app.models.game import Game
 from app.models.rule import Rule
 from ..models.player import Player
@@ -23,9 +22,6 @@ class ConnectionManager:
         self.active_connections.remove(websocket)
 
     async def send_personal_message(self, message: WebSocketMessage, websocket: WebSocket):
-        game=self.get_game(websocket)
-        for i in range(4):
-            print(f"{str(i)}shoupai",game.players[i].shoupai)
         await websocket.send_json(message.model_dump())
 
     async def broadcast(self, message: WebSocketMessage):

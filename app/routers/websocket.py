@@ -10,7 +10,6 @@ from pydantic import BaseModel, ValidationError
 from typing import Literal, Dict, Any, List, Union, Annotated,Optional
 import json
 from ..managers.connection import ConnectionManager
-from ..config import Store
 from ..models.pai import Pai
 from ..models.game import Game
 from ..models.websocket import (
@@ -26,9 +25,7 @@ from fastapi.encoders import jsonable_encoder
 import traceback
 
 router = APIRouter()
-store = Store()
-con_mgr = ConnectionManager(store.sockets)
-
+con_mgr = ConnectionManager()
 
 def get_connection_manager():
     return con_mgr
@@ -184,7 +181,7 @@ class WebSocketMessageHandler:
                 dapai_msg = GameMessage(
                     type="game", game=GameState(action="dapai", turn=game.get_turn(i), status="ready",dapai=message.game.dapai)
                 )
-                if game.players[i].socket:
+                if game.players[i].socket and game.players[i].menfeng!=game.teban:
                     await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
         
         

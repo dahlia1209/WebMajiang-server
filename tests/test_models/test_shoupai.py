@@ -1390,3 +1390,24 @@ def test_kokushi_13_way_tenpai():
     is_tenpai, agari_pais = shoupai.calculate_xiangting()
     assert is_tenpai == True
     assert len(agari_pais) == 13
+
+def test_fulou_serialize_and_deserialize():
+    fulou=Fulou(type="peng")
+    assert fulou.serialize()=="peng,null,null,null"
+    fulou=Fulou(type="peng",nakipai=Pai(suit="m",num=3),fuloupais=[Pai.deserialize("m3"),Pai.deserialize("m3")],position="duimian")
+    assert fulou.serialize()=="peng,m3f,m3f+m3f,duimian"
+    fulou=Fulou(type="chi",nakipai=Pai(suit="m",num=1),fuloupais=[Pai.deserialize("m2"),Pai.deserialize("m3")],position="shangjia")
+    assert fulou.serialize()=="chi,m1f,m2f+m3f,shangjia"
+    fulou=Fulou(type="angang",fuloupais=[Pai.deserialize("z1") for _ in range(4)])
+    assert fulou.serialize()=="angang,null,z1f+z1f+z1f+z1f,null"
+    
+    fulou=Fulou.deserialize("peng,null,null,null")
+    assert fulou==Fulou(type="peng")
+    fulou=Fulou.deserialize("peng,m3f,m3f+m3f,duimian")
+    assert fulou==Fulou(type="peng",nakipai=Pai(suit="m",num=3),fuloupais=[Pai.deserialize("m3"),Pai.deserialize("m3")],position="duimian")
+    fulou=Fulou.deserialize("chi,m1f,m2f+m3f,shangjia")
+    assert fulou==Fulou(type="chi",nakipai=Pai(suit="m",num=1),fuloupais=[Pai.deserialize("m2"),Pai.deserialize("m3")],position="shangjia")
+    fulou=Fulou.deserialize("angang,null,z1f+z1f+z1f+z1f,null")
+    assert fulou==Fulou(type="angang",fuloupais=[Pai.deserialize("z1") for _ in range(4)])
+    
+    

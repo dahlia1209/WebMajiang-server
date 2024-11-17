@@ -88,4 +88,20 @@ def test_is_red():
     normal_pai = Pai(suit='m', num=5)
     assert red_dora.is_red
     assert not normal_pai.is_red
+
+def test_serialize_and_deserialize():
+    pai=Pai(suit="m",num=5)
+    assert pai.serialize()=="m5f"
+    pai=Pai(suit="m",num=5,is_red=True)
+    assert pai.serialize()=="m5t"
+    pai=Pai(suit="b",num=0)
+    assert pai.serialize()=="b0f"
     
+    pai=Pai.deserialize("m5f")
+    assert pai==Pai(suit="m",num=5)
+    pai=Pai.deserialize("m5")
+    assert pai==Pai(suit="m",num=5)
+    pai=Pai.deserialize("m5t")
+    assert pai==Pai(suit="m",num=5,is_red=True)
+    pai=Pai.deserialize("b0")
+    assert pai==Pai(suit="b",num=0)
