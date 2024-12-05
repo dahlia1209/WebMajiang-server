@@ -39,6 +39,23 @@ class Pai(BaseModel):
         return str(self.suit)+str(self.num)+('t' if self.is_red else 'f')
     
     @classmethod
+    def get_yaojiupai(self):
+        return [
+            p
+            for p in [
+                Pai.deserialize(str)
+                for str in [
+                    "m1",
+                    "m9",
+                    "p1",
+                    "p9",
+                    "s1",
+                    "s9",
+                ]
+            ]
+        ] + [Pai(suit="z", num=n) for n in range(1, 8)]
+    
+    @classmethod
     def deserialize(cls, str: str) -> "Pai":
         if len(str) < 2 or len(str) > 3:
             raise ValueError("文字数は2~3文字にしてください")

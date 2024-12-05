@@ -13,7 +13,7 @@ class PlayerService(BaseModel):
 
     def zimo(self, shan: Shan):
         pai = shan.pop()
-        self.player.shoupai.set_zimopai(pai)
+        self.player.shoupai.do_zimo(pai)
 
     def dapai(self, pai: Pai, is_zimopai: bool = False):
         self.player.he.add_pai(pai)
@@ -28,13 +28,13 @@ class PlayerService(BaseModel):
         if fulou.type in ["angang","jiagang"] and wangpai:
             self.player.shoupai.do_fulou(fulou=fulou)
             lingshangpai = wangpai.pop_lingshangpai()
-            self.player.shoupai.set_zimopai(lingshangpai)
+            self.player.shoupai.do_zimo(lingshangpai)
         elif fulou.type == "minggang" and wangpai and he:
             nakipai = he.pop()
             if nakipai.num == fulou.nakipai.num and nakipai.suit == fulou.nakipai.suit: 
                 self.player.shoupai.do_fulou(fulou=fulou)
                 lingshangpai = wangpai.pop_lingshangpai()
-                self.player.shoupai.set_zimopai(lingshangpai)
+                self.player.shoupai.do_zimo(lingshangpai)
             else:
                 raise ValueError(f"指定された鳴牌では副露できません.fulou:{fulou},nakipai:{nakipai}")
         elif fulou.type in ["chi","peng"]  and he:
@@ -47,7 +47,7 @@ class PlayerService(BaseModel):
             raise ValueError(f"指定された副露ができません。捨て牌:{lingshangpai},fulou{fulou}")
     
     def hule(self,hule_pai: Pai, is_zimopai: bool = False):
-        for pai in self.player.shoupai.waiting_hule_pai:
+        for pai in self.player.shoupai.hule_candidates:
             if hule_pai.num==pai.num and hule_pai.suit==pai.suit:
                 pass
              

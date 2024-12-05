@@ -87,14 +87,21 @@ class Game(BaseModel):
                 - 3: 上家
         """
         zimopai = self.shan.pop()
-        self.players[num].shoupai.set_zimopai(zimopai)
+        self.players[num].shoupai.do_zimo(zimopai)
         return zimopai
 
-    def dapai(self, num: Literal[0, 1, 2, 3], dapai: Pai):
-        self.players[num].shoupai.remove_pai(dapai)
-
-    def bot_action(self, action: PlayerAction):
+    def dapai(self, num: Literal[0, 1, 2, 3], dapai: Pai,dapai_idx:int):
+        self.players[num].shoupai.do_dapai(dapai,dapai_idx)
+        
+    def fulou(self):
         pass
+    
+    def lizhi():
+        pass
+    
+    def hule():
+        pass
+
 
     def get_turn(self, num: Literal[0, 1, 2, 3]) -> Position:
         if self.players[num].menfeng == self.teban:
@@ -119,3 +126,4 @@ class Game(BaseModel):
         else:
             self.teban = "東"
         return self.teban
+

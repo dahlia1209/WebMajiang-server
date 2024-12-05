@@ -162,7 +162,7 @@ class WebSocketMessageHandler:
         # Botのツモ切りであれば全員に通知する
         if zimogiri !=None:
             zimopai=game.players[zimogiri].shoupai.zimopai
-            game.dapai(zimogiri,zimopai)
+            game.dapai(zimogiri,zimopai,99)
             for i in range(4):
                 dapai_msg = GameMessage(
                     type="game", game=GameState(action="dapai", turn=game.get_turn(i), status="ready",dapai=zimopai.serialize())
@@ -176,10 +176,13 @@ class WebSocketMessageHandler:
         
         # プレイヤーの打牌
         if message.game.dapai:
-            game.dapai(game.score.menfeng.index(game.teban), Pai.deserialize(message.game.dapai))
+            parse_dapai=message.game.dapai.split(",")
+            if len(parse_dapai)!=2 and isinstance(parse_dapai[0],str) and isinstance(parse_dapai[1],int):
+                raise ValueError(f"メッセージが正しくありません.[打牌,牌番号]形式にしてください. message.game.dapai:{message.game.dapai}")
+            game.dapai(game.score.menfeng.index(game.teban), Pai.deserialize(parse_dapai[0]),int(parse_dapai[1]))
             for i in range(4):
                 dapai_msg = GameMessage(
-                    type="game", game=GameState(action="dapai", turn=game.get_turn(i), status="ready",dapai=message.game.dapai)
+                    type="game", game=GameState(action="dapai", turn=game.get_turn(i), status="ready",dapai=parse_dapai[0])
                 )
                 if game.players[i].socket and game.players[i].menfeng!=game.teban:
                     await self.manager.send_personal_message(dapai_msg, game.players[i].socket)

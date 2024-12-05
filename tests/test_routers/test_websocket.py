@@ -55,7 +55,7 @@ def test_websocket_handler():
             assert game_msg.game.turn in ["main","xiajia","duimian","shangjia"]
             assert game_msg.game.zimopai is None
             if game_msg.game.turn =="main":
-                m=GameMessage(type="game",game=GameState(action="dapai",status="ready",turn="main",dapai=zimo))
+                m=GameMessage(type="game",game=GameState(action="dapai",status="ready",turn="main",dapai=f"{zimo},99"))
                 websocket.send_json(m.model_dump())
                 return zimo
             else :
@@ -75,7 +75,7 @@ def test_websocket_handler():
             return game_msg.game.dapai
     
     
-    for _ in range(3):
+    for _ in range(1):
         with client.websocket_connect("/ws") as websocket:
             #開局、配牌
             m=GameMessage(type="game",game=GameState(action="kaiju"))

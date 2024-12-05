@@ -40,7 +40,7 @@ def test_qipai():
 
     for i in range(4):
         old_game.players[i].he.add_pai(p for p in [Pai(suit="m",num=1),Pai(suit="m",num=2),Pai(suit="m",num=3),Pai(suit="m",num=4)])
-        old_game.players[i].shoupai.add_pai(p for p in [Pai(suit="m",num=1),Pai(suit="m",num=2),Pai(suit="m",num=3),Pai(suit="m",num=4)])
+        old_game.players[i].shoupai.bingpai.append(p for p in [Pai(suit="m",num=1),Pai(suit="m",num=2),Pai(suit="m",num=3),Pai(suit="m",num=4)])
     old_game.shan.pais=[]
     old_game.wangpai.baopai=[]
     old_game.wangpai.lingshangpai=[]
@@ -75,7 +75,7 @@ def test_dapai():
     for i in range(4):
         for j in range(13):
             dapai=game.players[i].shoupai.bingpai[0]
-            game.dapai(i,dapai)
+            game.dapai(i,dapai,0)
             assert len(game.players[i].shoupai.bingpai)==(12-j)
 
 def test_next_teban():

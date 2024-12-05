@@ -11,3 +11,5 @@ Position=Literal["main","xiajia","duimian","shangjia"]
 
 PlayerStatus=Literal["thinking","ready"]
 
+Combination=Literal["shunzi","kezi","duizi","tazi","gangzi"]
+
