@@ -54,6 +54,10 @@ class Pai(BaseModel):
                 ]
             ]
         ] + [Pai(suit="z", num=n) for n in range(1, 8)]
+        
+    @classmethod
+    def get_zhongzhangpai(self):
+        return [Pai(suit=s,num=i) for  i in range(2,9) for s in ["m","s","p"]]
     
     @classmethod
     def deserialize(cls, str: str) -> "Pai":

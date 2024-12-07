@@ -74,9 +74,10 @@ def test_dapai():
     game.qipai()
     for i in range(4):
         for j in range(13):
+            zimopai=game.zimo(i)
             dapai=game.players[i].shoupai.bingpai[0]
             game.dapai(i,dapai,0)
-            assert len(game.players[i].shoupai.bingpai)==(12-j)
+            assert len(game.players[i].shoupai.bingpai)==13
 
 def test_next_teban():
     game = Game(players=[Player() for _ in range(4)])
