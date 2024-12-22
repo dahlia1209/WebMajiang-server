@@ -72,6 +72,42 @@ class Pai(BaseModel):
         except Exception as e:
             print("error")  
             raise ValueError(f"正しい文字を指定してください。与えられた文字:{str}")
+    
+    def get_name(self):
+        if self.suit=="z":
+            zi={
+                1:"東",
+                2:"南",
+                3:"西",
+                4:"北",
+                5:"白",
+                6:"發",
+                7:"中",
+                
+            }
+            return zi[self.num]
+        elif self.suit in ["m","p","s"]:
+            suit={
+                "m":"萬",
+                "p":"筒",
+                "s":"索"
+            }
+            shu={
+                1:"一",
+                2:"二",
+                3:"三",
+                4:"四",
+                5:"五",
+                6:"六",
+                7:"七",
+                8:"八",
+                9:"九",
+            }
+            return f"{shu[self.num]}{suit[self.suit]}"
+        else :
+            return "裏牌"
+
+
         
     
     

@@ -12,7 +12,8 @@ class Player(BaseModel):
     menfeng: Feng = Field(default=None)
     user: Optional[User] = Field(default=None)
     he: He = Field(default=He())
-    is_lizhi: bool = Field(default=False)
+    # is_lizhi: bool = Field(default=False)
+    # is_yifa:bool=Field(default=False)
     socket: Optional[WebSocket]=Field(default=None)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

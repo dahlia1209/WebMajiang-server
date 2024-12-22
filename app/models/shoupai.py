@@ -4,7 +4,7 @@ from .pai import Pai
 from collections import defaultdict
 from .type import Feng, PlayerAction, Position, Combination
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from copy import deepcopy
 import warnings
 
@@ -16,25 +16,40 @@ class PatternResult:
     pais: List[Pai]
     nums: List[int]
 
+    def get_pais_by_num(self, num: int):
+        return self.pais[sum(self.nums[:num]) : sum(self.nums[:num]) + self.nums[num]]
+
+    def get_pai_list(self):
+        return [
+            self.pais[sum(self.nums[:i]) : sum(self.nums[:i]) + n]
+            for i, n in enumerate(self.nums)
+        ]
+        
+@dataclass
+class XiangtingResult:
+    xiangting: int = 99
+    best_candidates: List[PatternResult] = field(default_factory=list)
+    hule_candidates: List[PatternResult] = field(default_factory=list)
+
 
 class Fulou(BaseModel):
     type: FulouType
     nakipai: Optional[Pai] = Field(default=None)
-    fuloupais: Optional[List[Pai]] = Field(default=[])
+    menpais: List[Pai] = Field(default=[])
     position: Optional[Position] = Field(default=None)
 
     def serialize(self, without_red: bool = False) -> str:
         point = 2 if without_red else 3
         ns = self.nakipai.serialize()[:point] if self.nakipai else "null"
         fs = (
-            "+".join(p.serialize()[:point] for p in self.fuloupais)
-            if self.fuloupais
+            "+".join(p.serialize()[:point] for p in self.menpais)
+            if self.menpais
             else "null"
         )
         ps = self.position if self.position else "null"
         s = ",".join([str(self.type), ns, fs, ps])
         return s
-    
+
     def get_without_red(self):
         return Fulou(
             type=self.type,
@@ -43,9 +58,12 @@ class Fulou(BaseModel):
                 if self.nakipai
                 else None
             ),
-            fuloupais=[Pai(suit=p.suit, num=p.num) for p in self.fuloupais],
-            position=self.position
+            menpais=[Pai(suit=p.suit, num=p.num) for p in self.menpais],
+            position=self.position,
         )
+
+    def get_pais(self):
+        return [p for p in ([self.nakipai] if self.nakipai else []) + self.menpais]
 
     @staticmethod
     def deserialize(s: str) -> "Fulou":
@@ -58,7 +76,7 @@ class Fulou(BaseModel):
         f = [] if ss[2] == "null" else [Pai.deserialize(fs) for fs in ss[2].split("+")]
         p = None if ss[3] == "null" else ss[3]
 
-        return Fulou(type=t, nakipai=n, fuloupais=f, position=p)
+        return Fulou(type=t, nakipai=n, menpais=f, position=p)
 
 
 class Shoupai(BaseModel):
@@ -67,11 +85,12 @@ class Shoupai(BaseModel):
     zimopai: Optional[Pai] = Field(default=None)
     hule_candidates: List[PatternResult] = Field(default=[])
     fulou_candidates: List[Fulou] = Field(default=[])
-    lizhi_candidates: List[Fulou] = Field(default=[])
+    # lizhi_candidates: List[Fulou] = Field(default=[])
+    lizhi_pai: List[Pai] = Field(default=[])
     xiangting: int = Field(default=99)
     bingpai_candidates: List[PatternResult] = Field(default=[])
-    is_lizhi: bool = Field(default=False)
-    is_hule:bool=Field(default=False)
+    lizhi_flag: int = Field(default=0)
+    is_yifa: bool = Field(default=False)
 
     def do_zimo(self, pai: Pai):
         if self.zimopai is not None:
@@ -82,40 +101,28 @@ class Shoupai(BaseModel):
         # self._check_hule()
 
         # リーチ候補探索
-        if not self.is_lizhi:
+        if not self.lizhi_flag:
             self._comupute_lizhi_candidates()
 
         # 副露候補候補
         self._compute_fulou_candidates(fulou_type=["angang", "jiagang"])
 
     def do_dapai(self, dapai: Pai, dapai_idx: int):
+        self._check_dapai(dapai, dapai_idx)
+
         dapai: Pai
         if 0 <= dapai_idx < len(self.bingpai):
-            if self.bingpai[dapai_idx] != dapai:
-                raise ValueError(
-                    f"牌番号と打牌が一致していません.牌番号:{dapai_idx},牌番号の手牌:{self.bingpai[dapai_idx]},打牌:{dapai}"
-                )
-            if self.is_lizhi:
-                raise ValueError(f"リーチ中に手牌から打牌しています")
             dapai = self.bingpai.pop(dapai_idx)
         elif dapai_idx == 99:
-            if self.zimopai.serialize() != dapai.serialize():
-                raise ValueError(
-                    f"ツモ牌と打牌が一致していません.牌番号:{dapai_idx},ツモ牌:{self.zimopai},打牌:{dapai}"
-                )
             dapai = self.zimopai
             self.zimopai = None
-        else:
-            raise ValueError(
-                f"指定したインデックスは正しくありません.idx={dapai_idx},手牌数={len(self.bingpai)}"
-            )
 
         # ツモ牌を手牌に加えてソート
         sorted_pais = sorted(
             self.bingpai + ([self.zimopai] if self.zimopai else []),
             key=lambda x: (x.suit, x.num, x.is_red),
         )
-        self.zimopai=None
+        self.zimopai = None
         self.bingpai = sorted_pais
 
         # 副露候補候補
@@ -123,18 +130,24 @@ class Shoupai(BaseModel):
 
         # アガリ系探索
         self._compute_xiangting()
-        
+
+        # 一発は消える
+        self.is_yifa = False
+
         return dapai
 
     def do_fulou(self, fulou: Fulou):
         """副露（チー、ポン、明槓、暗槓、加槓）を実行する汎用関数"""
         fulou_without_red = fulou.get_without_red()
-        if fulou_without_red.model_copy(update={"position":None}) not in self.fulou_candidates:
+        if (
+            fulou_without_red.model_copy(update={"position": None})
+            not in self.fulou_candidates
+        ):
             raise ValueError(
                 f"指定された副露はできません。指定された副露{fulou.serialize()}.副露候補:{[f.serialize() for f in self.fulou_candidates]}"
             )
-            
-        if fulou_without_red.type in ["chi","peng","minggang"] and not fulou.position:
+
+        if fulou_without_red.type in ["chi", "peng", "minggang"] and not fulou.position:
             raise ValueError(
                 f"副露の鳴き先が指定されていません.副露:{fulou.serialize()}."
             )
@@ -151,11 +164,11 @@ class Shoupai(BaseModel):
                 else:
                     bingpai.append(p)
             self.bingpai = sorted(bingpai, key=lambda x: (x.suit, x.num, x.is_red))
-            self.zimopai=None
+            self.zimopai = None
 
             # 副露牌にカカン牌を追加
             fulou_copy = self.fulou[fulou_idx].model_copy(update={"type": "jiagang"})
-            fulou_copy.fuloupais.append(jiapai)
+            fulou_copy.menpais.append(jiapai)
             self.fulou[fulou_idx] = fulou_copy
 
         elif fulou.type == "angang":
@@ -163,87 +176,88 @@ class Shoupai(BaseModel):
             angang_pai: List[Pai] = []
             bingpai: List[Pai] = []
             for p in self.bingpai + ([self.zimopai] if self.zimopai else []):
-                if p.serialize()[:2] == fulou.fuloupais[0].serialize()[:2]:
+                if p.serialize()[:2] == fulou.menpais[0].serialize()[:2]:
                     angang_pai.append(p)
                 else:
                     bingpai.append(p)
-            fulou_copy.fuloupais = angang_pai
+            fulou_copy.menpais = angang_pai
             self.bingpai = sorted(bingpai, key=lambda x: (x.suit, x.num, x.is_red))
-            self.zimopai=None
-            
+            self.zimopai = None
+
             self.fulou.append(fulou_copy)
 
         elif fulou.type in ["chi", "minggang", "peng"]:
             self.fulou.append(fulou)
-            for p in fulou.fuloupais:
+            for p in fulou.menpais:
                 self.bingpai.remove(p)
 
         else:
             raise ValueError(f"副露できません:{fulou}")
-        
-        if fulou.type in ["chi","peng"]:
+
+        if fulou.type in ["chi", "peng"]:
             # 副露候補探索
             self._compute_fulou_candidates(fulou_type=["angang", "jiagang"])
 
     def do_hule(self):
         pass
-    
+
     def _check_dapai(self, dapai: Pai, dapai_idx: int):
         if 0 <= dapai_idx < len(self.bingpai):
             if self.bingpai[dapai_idx] != dapai:
                 raise ValueError(
                     f"牌番号と打牌が一致していません.牌番号:{dapai_idx},牌番号の手牌:{self.bingpai[dapai_idx]},打牌:{dapai}"
                 )
-            if self.is_lizhi:
+            if self.lizhi_flag:
                 raise ValueError(f"リーチ中に手牌から打牌しています")
-            dapai = self.bingpai.pop(dapai_idx)
         elif dapai_idx == 99:
             if self.zimopai.serialize() != dapai.serialize():
                 raise ValueError(
                     f"ツモ牌と打牌が一致していません.牌番号:{dapai_idx},ツモ牌:{self.zimopai},打牌:{dapai}"
                 )
-            dapai = self.zimopai
-            self.zimopai = None
         else:
             raise ValueError(
                 f"指定したインデックスは正しくありません.idx={dapai_idx},手牌数={len(self.bingpai)}"
             )
         return True
 
-    def do_lizhi(self, dapai: Pai, dapai_idx: int):
-        dapai: Pai
-        if 0 <= dapai_idx < len(self.bingpai):
-            if self.bingpai[dapai_idx] != dapai:
-                raise ValueError(
-                    f"牌番号と打牌が一致していません.牌番号:{dapai_idx},牌番号の手牌:{self.bingpai[dapai_idx]},打牌:{dapai}"
-                )
-            if self.is_lizhi:
-                raise ValueError(f"リーチ中に手牌から打牌しています")
-            dapai = self.bingpai.pop(dapai_idx)
-        elif dapai_idx == 99:
-            if self.zimopai.serialize() != dapai.serialize():
-                raise ValueError(
-                    f"ツモ牌と打牌が一致していません.牌番号:{dapai_idx},ツモ牌:{self.zimopai},打牌:{dapai}"
-                )
-            dapai = self.zimopai
-            self.zimopai = None
-        else:
-            raise ValueError(
-                f"指定したインデックスは正しくありません.idx={dapai_idx},手牌数={len(self.bingpai)}"
-            )
+    def do_lizhi(self, dapai: Pai, dapai_idx: int,is_double_lizhi:bool=False):
+        self.do_dapai(dapai, dapai_idx)
+
+        # dapai: Pai
+        # if 0 <= dapai_idx < len(self.bingpai):
+        #     dapai = self.bingpai.pop(dapai_idx)
+        # elif dapai_idx == 99:
+        #     dapai = self.zimopai
+        #     self.zimopai = None
 
         # ツモ牌を手牌に加えてソート
-        sorted_pais = sorted(
-            self.bingpai + ([self.zimopai] if self.zimopai else []),
-            key=lambda x: (x.suit, x.num, x.is_red),
-        )
-        self.zimopai=None
-        self.bingpai = sorted_pais
+        # sorted_pais = sorted(
+        #     self.bingpai + ([self.zimopai] if self.zimopai else []),
+        #     key=lambda x: (x.suit, x.num, x.is_red),
+        # )
+        # self.zimopai = None
+        # self.bingpai = sorted_pais
+
+        # リーチフラグ
+        self.lizhi_flag = 1 if not is_double_lizhi else 2
+        self.is_yifa = True
 
         # アガリ系探索
-        self._compute_xiangting()
-        
+        # self._compute_xiangting()
+
         return dapai
+
+    def get_hulepattern(self, hulepai: Pai):
+        hulepattern = [
+            pat
+            for pat in self.hule_candidates
+            if pat.pais[-1].serialize()[:2] == hulepai.serialize()[:2]
+        ]
+        if not hulepattern:
+            raise ValueError(
+                f"アガリ形がありません.手牌:{self.bingpai}. アガリ牌:{hulepai}"
+            )
+        return hulepattern
 
     def _compute_fulou_candidates(
         self,
@@ -251,8 +265,6 @@ class Shoupai(BaseModel):
         combination_list: Dict[Combination, List[str]] = {},
     ):
         fulou_candidates: List[Fulou] = []
-        if len(self.bingpai) == 1:
-            return fulou_candidates
         if not combination_list:
             combination_list = self._find_pai_combinations(self.bingpai)
 
@@ -272,7 +284,7 @@ class Shoupai(BaseModel):
                     [t1.num, t1.num + 1, t1.num + 2],
                 ]:
                     fulou_candidates.append(
-                        Fulou(type="chi", nakipai=x, fuloupais=[t1, t2])
+                        Fulou(type="chi", nakipai=x, menpais=[t1, t2])
                     )
 
         # ポン候補
@@ -280,7 +292,7 @@ class Shoupai(BaseModel):
             if "peng" not in fulou_type:
                 break
             p1, p2 = [Pai.deserialize(s) for s in pai_str.split("+")]
-            fulou_candidates.append(Fulou(type="peng", nakipai=p1, fuloupais=[p1, p2]))
+            fulou_candidates.append(Fulou(type="peng", nakipai=p1, menpais=[p1, p2]))
 
         # 明槓候補
         for pai_str in combination_list["kezi"]:
@@ -288,9 +300,8 @@ class Shoupai(BaseModel):
                 break
             m1, m2, m3 = [Pai.deserialize(s) for s in pai_str.split("+")]
             fulou_candidates.append(
-                Fulou(type="minggang", nakipai=m1, fuloupais=[m1, m2, m3])
+                Fulou(type="minggang", nakipai=m1, menpais=[m1, m2, m3])
             )
-
 
         # 暗槓候補
         for pai_str in combination_list["kezi"]:
@@ -298,16 +309,22 @@ class Shoupai(BaseModel):
                 break
             m1, m2, m3 = [Pai.deserialize(s) for s in pai_str.split("+")]
             if self.zimopai and self.zimopai.serialize()[:2] == m1.serialize()[:2]:
-                fulou_candidates.append(
-                    Fulou(type="angang", fuloupais=[m1, m2, m3, m1])
-                )
+                fulou_candidates.append(Fulou(type="angang", menpais=[m1, m2, m3, m1]))
         for pai_str in combination_list["gangzi"]:
             if "angang" not in fulou_type:
                 break
             a1, a2, a3, a4 = [Pai.deserialize(s) for s in pai_str.split("+")]
-            fulou_candidates.append(Fulou(type="angang", fuloupais=[a1, a2, a3, a4]))
+            fulou_candidates.append(Fulou(type="angang", menpais=[a1, a2, a3, a4]))
 
         # 加槓候補
+        print(
+            "bingpai+zimopai,self.fulou,",
+            [
+                p.serialize()[:2]
+                for p in self.bingpai + ([self.zimopai] if self.zimopai else [])
+            ],
+            [f.serialize() for f in self.fulou],
+        )
         for f in self.fulou:
             if "jiagang" not in fulou_type:
                 break
@@ -316,10 +333,17 @@ class Shoupai(BaseModel):
                 for p in self.bingpai + ([self.zimopai] if self.zimopai else [])
             ]:
                 fulou_candidates.append(
-                    Fulou(type="jiagang", nakipai=f.nakipai, fuloupais=f.fuloupais)
+                    Fulou(type="jiagang", nakipai=f.nakipai, menpais=f.menpais)
                 )
 
-        self.fulou_candidates = fulou_candidates
+        self.fulou_candidates = sorted(
+            fulou_candidates,
+            key=lambda x: (
+                x.type,
+                x.nakipai.serialize() if x.nakipai else x.nakipai,
+                x.menpais[0].serialize() if x.menpais else None,
+            ),
+        )
 
         return self.fulou_candidates
 
@@ -334,15 +358,13 @@ class Shoupai(BaseModel):
 
     # 国士無双シャン点数取得
     def _get_kokushi_xiangting(self, pais: List[Pai] = []):
-        xiangting: int = 99
-        best_candidates: List[PatternResult] = []
-        hule_candidates: List[PatternResult] = []
+        result = XiangtingResult()
         if not pais:
             pais = self.bingpai
         if len(pais) < 13:
-            return (xiangting, best_candidates,hule_candidates)
+            return result
 
-        xiangting = 13  # シャン点数最大13
+        result.xiangting = 13  # シャン点数最大13
         unique_pais = self._get_unique_pais(pais)
         yaojiushu = len(
             [
@@ -363,61 +385,73 @@ class Shoupai(BaseModel):
                 break
 
         # シャン点数計算
-        xiangting -= yaojiushu
+        result.xiangting -= yaojiushu
 
         # アガリ牌を追加
         for y in yaojiupai:
-            if xiangting != 0:
+            if result.xiangting != 0:
                 break
             if set(yaojiupai).issubset(set(pais + [y])):
-                hule_candidates.append(
+                result.hule_candidates.append(
                     PatternResult(pais + [y], [1 for _ in range(14)])
                 )
 
         # ベストパターン設定
-        best_candidates.append(PatternResult(pais, [1 for _ in range(13)]))
+        result.best_candidates.append(PatternResult(pais, [1 for _ in range(13)]))
 
         # self.hule_candidates.extend(best_candidates)
 
-        return (xiangting, best_candidates,hule_candidates)
+        return result
 
     # チートイツシャン点数取得
     def _get_qiduizi_xiangting(self, pais: List[Pai] = []):
-        xiangting: int = 99
-        best_candidates: List[PatternResult] = []
-        hule_candidates: List[PatternResult] = []
+        result = XiangtingResult()
         if not pais:
             pais = self.bingpai
         if len(pais) < 13:
-            return (xiangting, best_candidates,hule_candidates)
+            return result
 
-        xiangting = 6  # シャン点数最大6
+        result.xiangting = 6  # シャン点数最大6
 
         # 手牌の対子取得
         bingpai_str = [p.serialize()[:2] for p in pais]
         duizi_list = []
         single_list: List[str] = []
+        kezi_list: List[str] = []
+        gangzi_list: List[str] = []
+
         for s in bingpai_str:
             if Counter(bingpai_str)[s] == 2:
                 duizi_list.append(s)
+            elif Counter(bingpai_str)[s] == 3:
+                kezi_list.append(s)
+            elif Counter(bingpai_str)[s] == 4:
+                gangzi_list.append(s)
             else:
                 single_list.append(s)
 
         # シャン点数計算
-        xiangting -= len(duizi_list) / 2
+        result.xiangting -= (
+            (len(duizi_list) // 2) + (len(kezi_list) // 3) + (len(gangzi_list) // 4)
+        )
+        result.xiangting += (
+            result.xiangting + 1 - len(single_list)
+            if result.xiangting + 1 - len(single_list) > 0
+            else 0
+        )
 
         # アガリ牌設定
         for s in bingpai_str:
-            if xiangting != 0:
+            if result.xiangting != 0:
                 break
             if Counter(bingpai_str)[s] == 1:
-                hule_candidates.append(
+                result.hule_candidates.append(
                     PatternResult(pais + [Pai.deserialize(s)], [2, 2, 2, 2, 2, 2, 1, 1])
                 )
                 break
 
         # ベストパターン設定
-        best_candidates.append(
+        result.best_candidates.append(
             PatternResult(
                 pais=pais,
                 nums=[2 for _ in range(len(duizi_list) // 2)]
@@ -425,25 +459,21 @@ class Shoupai(BaseModel):
             )
         )
 
-        return xiangting, best_candidates,hule_candidates
+        return result
 
     # 面子手牌シャン点数取得
     def _get_mianzi_xiangting(self, pais: List[Pai] = []):
-        best_xiangting: int = 8
-        hule_candidates: List[PatternResult] = []
-        best_candidates: List[PatternResult] = []
+        result = XiangtingResult(xiangting=8)
         temp_candidates: List[PatternResult] = []
         if not pais:
             pais = self.bingpai
 
-        combination_list = self._find_combinations(pais)
-        fulou_num = (13 - len(pais)) / 3
-        best_xiangting = best_xiangting - fulou_num * 2
-        min_block_num = min(
-            [len(pat.nums) for pat in combination_list if 4 not in pat.nums]
-        )
+        pattern_list = self._find_mianzi_pattern(pais)
+        fulou_num = (13 - len(pais)) // 3
+        result.xiangting = result.xiangting - fulou_num * 2
+        min_block_num = min([len(pat.nums) for pat in pattern_list])
         # hule_candidates: List[PatternResult] = []
-        for pat in combination_list:
+        for pat in pattern_list:
             if len(pat.nums) > min_block_num:
                 continue
             if len(pat.pais) > 13 or len(pat.pais) % 3 != 1:
@@ -462,14 +492,46 @@ class Shoupai(BaseModel):
                 <= 4 - fulou_num - mianzi_num  # 最大ブロック数=4-副露数-面子数
                 else 4 - fulou_num - mianzi_num
             )  # ターツ数分シャン点数を引く
-            xiangting -= gangzi_num  # 槓子数分シャン点数を引く
+            # print("pat", [p.serialize() for p in pat.pais], pat.nums)
+            # 雀頭なしかつ孤立牌が全て雀頭待ちにならない場合はシャン点数足す(最後の４枚が槓子の形)
+            if (
+                1 in pat.nums
+                and 3 in pat.nums
+                and not bool(jiangpai_idx)
+                and all(
+                    [pat.get_pais_by_num(i)[0] for _ in range(3)] in pat.get_pai_list()
+                    for (i, n) in enumerate(pat.nums)
+                    if n == 1
+                )
+            ):
+                xiangting += 1
+            # 雀頭ありかつ対子が刻子にならない場合はシャン点数足す(最後の４枚が槓子の形)
+            if (
+                2 in pat.nums
+                and len(jiangpai_idx) >= 2
+                and all(
+                    pat.get_pais_by_num(i)
+                    in [r for j, r in enumerate(pat.get_pai_list()) if i != j]
+                    for (i, n) in enumerate(pat.nums)
+                    if n == 2
+                )
+            ):
+                xiangting += 1
+            # if all(len(jiangpai_idx)>=2  and [p for j,p in enumerate(pat.pais) if sum(pat.nums[:i])<=j<sum(pat.nums[:i])+2]
+            #     for (i,n) in enumerate(pat.nums) if n==2) :
+            #     xiangting+=1
+            # for (i,n) in enumerate(pat.nums):
+            #     if not bool(jiangpai_idx) and n==1 and 3 in pat.nums and [pat.pais[sum(pat.nums[:i])] for _ in range(3)] in pat.pais:
+
+            #     if bool(jiangpai_idx)  and n==2 and len(jiangpai_idx)>=2 and Counter(pat.pais)[pat.pais[sum(pat.nums[:i])]]!=4:
+            #         xiangting+=1
 
             # シャン点数更新
-            if xiangting < best_xiangting:
-                best_xiangting = xiangting
+            if xiangting < result.xiangting:
+                result.xiangting = xiangting
                 temp_candidates = []
                 temp_candidates.append(pat)
-            elif xiangting == best_xiangting:
+            elif xiangting == result.xiangting:
                 temp_candidates.append(pat)
 
             # テンパイであればアガリ牌を取得
@@ -487,15 +549,15 @@ class Shoupai(BaseModel):
 
         # アガリ候補追加
         for pat in temp_candidates:
-            if best_xiangting != 0:
+            if result.xiangting != 0:
                 break
-            hule_candidates += self._compute_mianzi_hule_candidates(pat)
-        hule_candidates.sort(key=lambda x: x.pais[-1].serialize())
+            result.hule_candidates += self._compute_mianzi_hule_candidates(pat)
+        result.hule_candidates.sort(key=lambda x: x.pais[-1].serialize())
 
         # ベストパターン設定
-        best_candidates = temp_candidates
+        result.best_candidates = temp_candidates
 
-        return best_xiangting, best_candidates,hule_candidates
+        return result
 
     def _get_jiangpai_idx(self, pattern: PatternResult):
         return [
@@ -576,7 +638,7 @@ class Shoupai(BaseModel):
             )
         )
 
-    def _find_combinations(
+    def _find_mianzi_pattern(
         self,
         pais: List[Pai],
         parent_combi: Optional[Tuple[int, List[Pai]]] = None,
@@ -584,6 +646,8 @@ class Shoupai(BaseModel):
     ) -> List[PatternResult]:
         pattern_list: List[PatternResult] = []
         pai_combination_list = self._find_pai_combinations(pais)
+        pai_combination_list["gangzi"] = []
+
         # 各パターンタイプについて試行
         for i, (combination_type, pai_combinations) in enumerate(
             pai_combination_list.items()
@@ -598,7 +662,7 @@ class Shoupai(BaseModel):
 
             for j, combi_str in enumerate(pai_combinations):
                 combi_pai = [Pai.deserialize(str) for str in combi_str.split("+")]
-                filtered_pais =  [Pai(suit=p.suit,num=p.num) for p in pais]
+                filtered_pais = [Pai(suit=p.suit, num=p.num) for p in pais]
                 # 使用した牌を除外
                 for p in combi_pai:
                     # print("filtered_pais,combi_pai",[p.serialize()[:2] for p in filtered_pais],p)
@@ -616,7 +680,7 @@ class Shoupai(BaseModel):
                     )
                 ):
 
-                    recursive_patterns = self._find_combinations(
+                    recursive_patterns = self._find_mianzi_pattern(
                         filtered_pais,
                         (i, combi_pai),
                         current_nest_num + 1,
@@ -640,38 +704,22 @@ class Shoupai(BaseModel):
     def _compute_xiangting(self):
         self.bingpai_candidates = []
         self.hule_candidates = []
-        
+
         xiangting_patterns = {
-            'kokushi': self._get_kokushi_xiangting(),
-            'qiduizi': self._get_qiduizi_xiangting(),
-            'mianzi': self._get_mianzi_xiangting()
+            "kokushi": self._get_kokushi_xiangting(),
+            "qiduizi": self._get_qiduizi_xiangting(),
+            "mianzi": self._get_mianzi_xiangting(),
         }
-        
-        self.xiangting = min(pattern[0] for pattern in xiangting_patterns.values())
-        
+
+        self.xiangting = min(
+            pattern.xiangting for pattern in xiangting_patterns.values()
+        )
+
         for pattern in xiangting_patterns.values():
-            if pattern[0] == self.xiangting:
-                self.bingpai_candidates.extend(pattern[1])
-                self.hule_candidates.extend(pattern[2])
-                
-        # self.hule_candidates.sort(key=lambda x: x.pais[-1].serialize())
+            if pattern.xiangting == self.xiangting:
+                self.bingpai_candidates.extend(pattern.best_candidates)
+                self.hule_candidates.extend(pattern.hule_candidates)
 
-        # kokushi_xiangting, kokushi_pattern,kokushi_hule = self._get_kokushi_xiangting()
-        # qiduizi_xiangting, qiduizi_pattern,qiduizi_hule = self._get_qiduizi_xiangting()
-        # mianzi_xiangting, mianzi_pattern,mianzi_hule = self._get_mianzi_xiangting()
-        # self.hule_candidates.sort(key=lambda x: x.pais[-1].serialize())
-
-        # self.xiangting = min(kokushi_xiangting, qiduizi_xiangting, mianzi_xiangting)
-        # for x in [
-        #     (kokushi_xiangting, kokushi_pattern,kokushi_hule),
-        #     (qiduizi_xiangting, qiduizi_pattern,qiduizi_hule),
-        #     (mianzi_xiangting, mianzi_pattern,mianzi_hule),
-        # ]:
-        #     if x[0] == self.xiangting:
-        #         self.bingpai_candidates.extend(x[1])
-        # self._comupute_lizhi_candidates()
-
-        # self.bingpai_candidates.sort(key=lambda x: x.pais[-1].serialize())
         # print("xiangting,self.bingpai_candidates",self.xiangting,[ ("+".join([ x.serialize()[:2] for x in p.pais]),p.nums) for p in self.bingpai_candidates])
 
         return self.xiangting
@@ -737,55 +785,60 @@ class Shoupai(BaseModel):
         return patterns
 
     def _comupute_lizhi_candidates(self):
-        self.lizhi_candidates = []
+        self.lizhi_pai = []
 
-        lizhi_candidates: List[PatternResult] = []
+        lizhi_pai: List[Pai] = []
 
         # 下記条件であるときは処理しない
         if (
             self.xiangting > 1  # シャン点数１より大きい
-            or self.bingpai !=13
+            or len(self.bingpai) < 13
             or (
                 self.fulou and [f for f in self.fulou if f.type != "angang"]
             )  # 副露が暗槓以外ある
             or not self.zimopai  # ツモ牌が存在しない
         ):
-            return lizhi_candidates
+            return lizhi_pai
 
         # リーチ牌探索
-        for pat in self.bingpai_candidates:
-            replaced_pais_str: List[str] = []
+        replaced_pais_str: List[str] = []
 
-            # 手牌パターン追加
-            # replaced_pais_str.append("+".join([p.serialize() for p in pat.pais]+[self.zimopai.serialize()]))
+        # 手牌の１枚をツモ牌に置き換えたパターン取得
+        for i, p in enumerate(self.bingpai):
+            pais_str = "+".join(
+                [q.serialize()[:2] for j, q in enumerate(self.bingpai) if i != j]
+                + [self.zimopai.serialize()[:2]]
+                + [p.serialize()[:2]]
+            )
+            if pais_str not in replaced_pais_str:
+                replaced_pais_str.append(pais_str)
 
-            # 手牌の１枚をツモ牌に置き換えたパターン取得
-            for i, p in enumerate(pat.pais):
-                pais_str = "+".join(
-                    [q.serialize() for j, q in enumerate(pat.pais) if i != j]
-                    + [self.zimopai.serialize()]
-                    + [p.serialize()]
+        # 手牌パターン追加
+        if self.zimopai.serialize()[:2] not in [
+            s.serialize()[:2] for s in self.bingpai
+        ]:
+            replaced_pais_str.append(
+                "+".join(
+                    [p.serialize()[:2] for p in self.bingpai]
+                    + [self.zimopai.serialize()[:2]]
                 )
-                if pais_str not in replaced_pais_str:
-                    replaced_pais_str.append(pais_str)
+            )
 
-            for pais_str in replaced_pais_str:
-                replaced_pais = [Pai.deserialize(s) for s in pais_str.split("+")]
-                x: int
-                bs: list[PatternResult]
-                if Counter(pat.nums)[2] >= 5:
-                    x, bs = self._get_qiduizi_xiangting(replaced_pais[:-1])
-                elif Counter(pat.nums)[1] == 13:
-                    x, bs = self._get_kokushi_xiangting(replaced_pais[:-1])
-                else:
-                    x, bs = self._get_mianzi_xiangting(replaced_pais[:-1])
+        # リーチ牌探索
+        for pais_str in replaced_pais_str:
+            replaced_pais = [Pai.deserialize(s) for s in pais_str.split("+")]
+            xiangting_result = {
+                "kokushi": self._get_kokushi_xiangting(replaced_pais[:-1]),
+                "qiduizi": self._get_qiduizi_xiangting(replaced_pais[:-1]),
+                "mianzi": self._get_mianzi_xiangting(replaced_pais[:-1]),
+            }
+            xiangting = min(pattern.xiangting for pattern in xiangting_result.values())
 
-                if x == 0:
-                    for b in bs:
-                        lizhi_candidates.append(
-                            PatternResult(b.pais + [replaced_pais[-1]], b.nums + [1])
-                        )
-                    self.hule_candidates = []
+            if xiangting == 0:
+                lizhi_pai.append(replaced_pais[-1])
 
-        self.lizhi_candidates = lizhi_candidates
-        return lizhi_candidates
+        self.lizhi_pai = lizhi_pai
+        return lizhi_pai
+    
+    def get_fuloupais(self):
+        return [p for f in self.fulou for p in f.get_pais()]
