@@ -46,7 +46,7 @@ class PlayerService(BaseModel):
         else:
             raise ValueError(f"指定された副露ができません。捨て牌:{lingshangpai},fulou{fulou}")
     
-    def hule(self,hule_pai: Pai, is_zimopai: bool = False):
+    def hule(self,hule_pai: Pai):
         for pai in self.player.shoupai.hule_candidates:
             if hule_pai.num==pai.num and hule_pai.suit==pai.suit:
                 pass

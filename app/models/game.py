@@ -20,7 +20,7 @@ class Hupai:
     fanshu: int = 0
     hu: int = 20
     pat: PatternResult = field(default_factory=lambda: PatternResult([], []))
-
+    
 
 class Game(BaseModel):
     players: List[Player] = Field(default=[Player() for _ in range(4)])
@@ -135,7 +135,91 @@ class Game(BaseModel):
             result_hupai = self._calculate_fanshu(num, pat, option)
             if result_hupai.fanshu > best_hupai.fanshu:
                 best_hupai = result_hupai
-        self._calculate_hu(num, best_hupai)
+        best_hupai=self._calculate_hu(num, best_hupai)
+        defen=self._calcualate_defen(num,best_hupai)
+        self.score.defen=[x + y for x, y in zip(self.score.defen, defen)]
+        
+    def _calcualate_defen(self,num: Literal[0, 1, 2, 3],hupai:Hupai):
+        if hupai.fanshu==0:
+            raise ValueError(f"役がありません.{hupai}")
+        
+        def get_manguan_defen():
+            if hupai.fanshu<4:
+                return 0
+            if hupai.fanshu==4:
+                if hupai.hu<40:
+                    return 0
+                else:
+                    return 8000
+            elif 4<hupai.fanshu<=5:
+                return 8000
+            elif 5<hupai.fanshu<=7:
+                return 12000
+            elif 7<hupai.fanshu<=10:
+                return 16000
+            elif 10<hupai.fanshu<=12:
+                return 24000
+            elif 12<hupai.fanshu:
+                return 32000
+            else:
+                raise ValueError(f"役数が正しくありません.{hupai}")
+        
+        def is_parent(player_idx:int):
+            return self.players[player_idx].menfeng=="東"
+        
+        def get_weight():
+            weight=1.0
+            #親なら1.5倍
+            if is_parent(num):
+                weight=1.5
+            return weight
+        
+        def get_hule_defen():
+            weight=get_weight()
+            hule_defen=int(((32*hupai.hu*2**(hupai.fanshu-1)*weight +99) //100)*100)
+            hule_defen= int(8000*weight) if hule_defen>int(8000*weight) else hule_defen
+            return hule_defen
+        
+        def get_hule_type():
+            hule_type= "zimo" if self.teban==self.players[num].menfeng else "rong"
+            return hule_type
+        
+        def get_baojia_idx():
+            for i in range(4):
+                if self.teban==self.players[i].menfeng:
+                    return i
+            raise ValueError(f"放銃者が存在しません")
+        
+        #打点計算
+        hule_defen=int(get_manguan_defen()*get_weight())
+        if hule_defen==0:
+            hule_defen=get_hule_defen()
+        
+        #打点配分
+        defen=[0,0,0,0]
+        if get_hule_type()=="rong": #ロンアガリ
+            defen[num]=hule_defen
+            defen[get_baojia_idx()]=-1*hule_defen
+        else: #ツモアガリ
+            if is_parent(num): #親
+                child_defen=((hule_defen//3 +99) //100)*100
+                defen[num]=child_defen*3
+                for i in range(4):
+                    if not is_parent(i):
+                        defen[i]=-1*child_defen
+                
+            else: #子
+                child_defen=((hule_defen//4 +99) //100)*100
+                parent_defen=((hule_defen//2 +99) //100)*100
+                defen[num]=child_defen*2+parent_defen
+                for i in range(4):
+                    if is_parent(i):
+                        defen[i]=-1*parent_defen
+                    else:
+                        if i!=num:
+                            defen[i]=-1*child_defen
+        
+        return defen
 
     def _calculate_hu(self, num: Literal[0, 1, 2, 3], hupai: Hupai):
         if "平和" in hupai.name and "門前清自摸和" in hupai.name:
@@ -144,12 +228,15 @@ class Game(BaseModel):
         elif "七対子" in hupai.name:
             hupai.hu = 25
             return hupai
+        elif hupai.fanshu//100>0:
+            hupai.hu = 20
+            return hupai
 
         hu = 20
-        
         anke_elem = [
             pais
-            for pais in hupai.pat.get_pai_list()[:-1] + (
+            for pais in hupai.pat.get_pai_list()[:-1]
+            + (
                 [hupai.pat.get_pai_list()[-1]]
                 if self.teban == self.players[num].menfeng
                 else []
@@ -187,6 +274,7 @@ class Game(BaseModel):
             ]
         ]
 
+        #明刻、暗刻、明槓、暗槓
         for pais in anke_elem:
             if pais[0] in Pai.get_yaojiupai():
                 hu += 8
@@ -198,40 +286,55 @@ class Game(BaseModel):
                 hu += 4
             else:
                 hu += 2
-
         for pais in angang_elem:
+            if pais[0] in Pai.get_yaojiupai():
+                hu += 32
+            else:
+                hu += 16
+
+        for pais in minggang_elem:
             if pais[0] in Pai.get_yaojiupai():
                 hu += 16
             else:
                 hu += 8
 
-        for pais in minggang_elem:
-            if pais[0] in Pai.get_yaojiupai():
-                hu += 8
-            else:
-                hu += 4
-
-        tazi_elem = hupai.pat.get_pais_by_num(len(hupai.pat.nums) - 2)
-        # print("tazi_elem",tazi_elem)
+        #アガリ牌の待ち方
+        tazi_elem = hupai.pat.get_pais_by_num(len(hupai.pat.nums) - 1)
         if (
-            len(tazi_elem) == 1
+            len(tazi_elem) == 2
             or (tazi_elem[0].num == 1 and tazi_elem[1].num == 2)
             or (tazi_elem[0].num == 8 and tazi_elem[1].num == 9)
             or (tazi_elem[1].num - tazi_elem[0].num == 2)
         ):
             hu += 2
         
-        jiangpai=tazi_elem+[hupai.pat.pais[-1]] if len(tazi_elem) == 1 else hupai.pat.get_pais_by_num(len(hupai.pat.nums) - 3)
-        if jiangpai[0].serialize()[:2] in ["z5","z6","z7"] or jiangpai[0].get_name() in [self.score.zhuangfeng,self.players[num].menfeng]:
+        #雀頭
+        jiangpai = (
+            tazi_elem
+            if len(tazi_elem) == 2
+            else hupai.pat.get_pais_by_num(len(hupai.pat.nums) - 2)
+        )
+        if jiangpai[0].get_name() in [
+            "白",
+            "發",
+            "中",
+            self.score.zhuangfeng,
+            self.players[num].menfeng,
+        ]:
             hu += 2
-        if self.teban==self.players[num].menfeng:
-            hu+=2
-        else:
-            hu+=10
-
-        hu=((hu - 1) // 10 + 1) * 10
-        hupai.hu=hu
         
+        #自摸orロン
+        if self.teban == self.players[num].menfeng:
+            hu += 2
+        else:
+            #メンゼンロン
+            if all(f.type=="angang" for f in self.players[num].shoupai.fulou):
+                hu += 10
+
+        #切り上げ
+        hu = ((hu - 1) // 10 + 1) * 10
+        hupai.hu = hu
+
         return hupai
 
     def _calculate_fanshu(
@@ -241,10 +344,6 @@ class Game(BaseModel):
         option: List[Literal["qianggang", "lingshang"]] = [],
     ):
         hupai = Hupai(pat=pat)
-        # アガリ形を補正
-        if not Counter(pat.nums)[1] == 14:
-            pat.nums.pop()
-            pat.nums[-1] += 1
 
         # 七対子
         if Counter(pat.nums)[2] == 7:
@@ -348,6 +447,16 @@ class Game(BaseModel):
                 and 2 <= pat.pais[-3].num <= 7
                 and pat.pais[-3].num + 1 == pat.pais[-2].num
             )  # 両面待ち
+            and (
+                pat.get_pais_by_num(len(pat.nums) - 2)[0].get_name()
+                not in [
+                    "白",
+                    "發",
+                    "中",
+                    self.score.zhuangfeng,
+                    self.players[num].menfeng,
+                ]
+            ) #雀頭が役牌でない
         ):
             hupai.fanshu += 1
             hupai.name.append(f"平和")

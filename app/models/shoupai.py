@@ -446,7 +446,7 @@ class Shoupai(BaseModel):
                 break
             if Counter(bingpai_str)[s] == 1:
                 result.hule_candidates.append(
-                    PatternResult(pais + [Pai.deserialize(s)], [2, 2, 2, 2, 2, 2, 1, 1])
+                    PatternResult(pais + [Pai.deserialize(s)], [2, 2, 2, 2, 2, 2, 2])
                 )
                 break
 
@@ -574,7 +574,7 @@ class Shoupai(BaseModel):
 
         if len(jiangpai_idx) == 0:  # 単騎
             hule_candidates.append(
-                PatternResult(pattern.pais + [pattern.pais[-1]], pattern.nums + [1])
+                PatternResult(pattern.pais + [pattern.pais[-1]], pattern.nums[:-1]+[pattern.nums[-1]+1])
             )
 
         elif len(jiangpai_idx) == 1:  # 対子＋ターツ
@@ -582,7 +582,7 @@ class Shoupai(BaseModel):
             hule_candidates.extend(
                 [
                     PatternResult(
-                        pattern.pais + [Pai(suit=p1.suit, num=n)], pattern.nums + [1]
+                        pattern.pais + [Pai(suit=p1.suit, num=n)], pattern.nums[:-1]+[pattern.nums[-1]+1]
                     )
                     for n in range(1, 10)
                     if self._is_shunzi([p1, p2, Pai(suit=p1.suit, num=n)])
@@ -591,7 +591,7 @@ class Shoupai(BaseModel):
         elif len(jiangpai_idx) == 2:  # 対子＋対子
             hule_candidates.extend(
                 [
-                    PatternResult(pattern.pais + [p], pattern.nums + [1])
+                    PatternResult(pattern.pais + [p], pattern.nums[:-1]+[pattern.nums[-1]+1])
                     for p in [pattern.pais[-4], pattern.pais[-2]]
                 ]
             )
