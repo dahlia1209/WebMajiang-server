@@ -317,14 +317,14 @@ class Shoupai(BaseModel):
             fulou_candidates.append(Fulou(type="angang", menpais=[a1, a2, a3, a4]))
 
         # 加槓候補
-        print(
-            "bingpai+zimopai,self.fulou,",
-            [
-                p.serialize()[:2]
-                for p in self.bingpai + ([self.zimopai] if self.zimopai else [])
-            ],
-            [f.serialize() for f in self.fulou],
-        )
+        # print(
+        #     "bingpai+zimopai,self.fulou,",
+        #     [
+        #         p.serialize()[:2]
+        #         for p in self.bingpai + ([self.zimopai] if self.zimopai else [])
+        #     ],
+        #     [f.serialize() for f in self.fulou],
+        # )
         for f in self.fulou:
             if "jiagang" not in fulou_type:
                 break

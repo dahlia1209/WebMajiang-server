@@ -23,58 +23,6 @@ app.dependency_overrides[get_connection_manager]=override_dependency
 
 def test_websocket_handler():
     
-    def zimo_handler(game_msg:GameMessage)->str:
-        print("zimo_handler",game_msg)
-        if(game_msg.game.action!="zimo"):
-            raise ValueError((f"正しいアクションを指定してください。与えられたアクション:{game_msg.game.action}"))
-        
-        if game_msg.game.status=="thinking":
-            # zimo thinking
-            assert game_msg.game.canFulouList ==[]
-            assert game_msg.game.fulou is None
-            assert game_msg.game.dapai is None
-            assert game_msg.game.qipai is None
-            assert game_msg.game.status =="thinking"
-            # first_turn=["main","xiajia","duimian","shangjia"][["東", "北","西","南"].index(score_msg.score.menfeng)]
-            assert game_msg.game.turn in ["main","xiajia","duimian","shangjia"]
-            zimopai=game_msg.game.zimopai
-            assert zimopai!="b0" if game_msg.game.turn=="main" else zimopai =="b0"
-            m=GameMessage(type="game",game=GameState(action="zimo",status="ready"))
-            websocket.send_json(m.model_dump())
-            return zimopai
-        else :
-            raise ValueError((f"zimoのreadyは受信しないっす"))
-        
-    
-    def dapai_handler(game_msg:GameMessage,zimo:str)->str:
-        print("dapai_handler",game_msg)
-        if(game_msg.game.action!="dapai"):
-            raise ValueError((f"正しいアクションを指定してください。与えられたアクション:{game_msg.game.action}"))
-        if game_msg.game.status=="thinking":
-            assert game_msg.game.dapai is None
-            assert game_msg.game.turn in ["main","xiajia","duimian","shangjia"]
-            assert game_msg.game.zimopai is None
-            if game_msg.game.turn =="main":
-                m=GameMessage(type="game",game=GameState(action="dapai",status="ready",turn="main",dapai=f"{zimo},99"))
-                websocket.send_json(m.model_dump())
-                return zimo
-            else :
-                res = websocket.receive_json()
-                game_msg=GameMessage(**res)
-                zimo=dapai_handler(game_msg,zimo)
-                return zimo
-                
-        else:
-            assert game_msg.game.dapai[0] in ["m", "p", "s", "z"]
-            assert int(game_msg.game.dapai[1]) in range(1,10)
-            assert game_msg.game.dapai[2] in ["t","f"]
-            assert game_msg.game.turn in ["xiajia","duimian","shangjia"]
-            assert game_msg.game.zimopai is None
-            m=GameMessage(type="game",game=GameState(action="dapai",status="ready"))
-            websocket.send_json(m.model_dump())
-            return game_msg.game.dapai
-    
-    
     for _ in range(1):
         with client.websocket_connect("/ws") as websocket:
             #開局、配牌
@@ -93,14 +41,17 @@ def test_websocket_handler():
             assert score_msg.score.zhuangfeng == "東"
             res = websocket.receive_json()
             game_msg=GameMessage(**res)
-            assert game_msg.game.action=="kaiju"
-            assert game_msg.game.canFulouList ==[]
+            assert game_msg.game.action=="qipai"
+            # assert game_msg.game.fulouCandidates ==[]
             assert game_msg.game.fulou is None
             assert game_msg.game.dapai is None
             assert game_msg.game.turn is None
             assert game_msg.game.zimopai is None
-            assert game_msg.game.status is None
+            # assert game_msg.game.status is None
             assert len(game_msg.game.qipai.split("+"))==13
+            m=GameMessage(type="game",game=GameState(action="qipai"))
+            websocket.send_json(m.model_dump())
+            
             
             #17巡ツモ＆ツモ切り
             for _ in range(17):
@@ -108,22 +59,45 @@ def test_websocket_handler():
                     res=None
                     res = websocket.receive_json()
                     game_msg=GameMessage(**res)
-                    zimo=zimo_handler(game_msg)
-                    res=None
+                    assert game_msg.game.action =="zimo"
+                    if game_msg.game.turn =="main":
+                        assert game_msg.game.zimopai is not None and game_msg.game.zimopai!="b0"
+                        game_msg.game.dapai=",".join([game_msg.game.zimopai,"99"])
+                        game_msg.game.zimopai=None
+                        websocket.send_json(game_msg.model_dump())
+                    else:
+                        assert game_msg.game.zimopai is not None and game_msg.game.zimopai=="b0"
+                        game_msg.game.zimopai=None
+                        websocket.send_json(game_msg.model_dump())
                     res = websocket.receive_json()
                     game_msg=GameMessage(**res)
-                    dapai=dapai_handler(game_msg,zimo)
+                    assert game_msg.game.action =="dapai"
+                    assert game_msg.game.dapai is not None and game_msg.game.dapai!="b0"
+                    game_msg.game.dapai=None
+                    websocket.send_json(game_msg.model_dump())
+                    
             
             #ラスト2牌
             for _ in range(2):
                     res=None
                     res = websocket.receive_json()
                     game_msg=GameMessage(**res)
-                    zimo=zimo_handler(game_msg)
-                    res=None
+                    assert game_msg.game.action =="zimo"
+                    if game_msg.game.turn =="main":
+                        assert game_msg.game.zimopai is not None and game_msg.game.zimopai!="b0"
+                        game_msg.game.dapai=",".join([game_msg.game.zimopai,"99"])
+                        game_msg.game.zimopai=None
+                        websocket.send_json(game_msg.model_dump())
+                    else:
+                        assert game_msg.game.zimopai is not None and game_msg.game.zimopai=="b0"
+                        game_msg.game.zimopai=None
+                        websocket.send_json(game_msg.model_dump())
                     res = websocket.receive_json()
                     game_msg=GameMessage(**res)
-                    dapai=dapai_handler(game_msg,zimo)
+                    assert game_msg.game.action =="dapai"
+                    assert game_msg.game.dapai is not None and game_msg.game.dapai!="b0"
+                    game_msg.game.dapai=None
+                    websocket.send_json(game_msg.model_dump())
             
             websocket.close()
 

@@ -62,11 +62,13 @@ class WebSocketMessageHandler:
     async def _handle_game_message(self, data: dict) -> None:
         """ゲームメッセージの処理"""
         message = GameMessage(**data)
+        
 
         handlers = {
-            "kaiju": self._handle_game_start,
-            "zimo": self._handle_zimo,
-            "dapai": self._handle_dapai,
+            "kaiju": self._handle_kaiju,
+            "qipai": self._handle_action,
+            "zimo": self._handle_action,
+            "dapai": self._handle_action,
         }
 
         handler = handlers.get(message.game.action)
@@ -78,44 +80,40 @@ class WebSocketMessageHandler:
 
         await handler(message)
 
-    async def _handle_game_start(self, message: GameMessage) -> None:
+    def _set_game_message_on_player(self,message: GameMessage):
+        game=self.manager.get_game(self.websocket)
+        for i in range(4):
+            if game.players[i].socket==self.websocket:
+                game.players[i].last_recieved_message=message
+    
+    async def _handle_kaiju(self, message: GameMessage) -> None:
         """開局処理"""
         new_game = self.manager.create_game(websocket=self.websocket)
+        self._set_game_message_on_player(message)
         result = self.manager.callback(self.websocket)
         if self.manager.is_callbacked(new_game):
-            await self._send_initial_game_state(new_game)
-            await self._send_zimo(new_game)
+            for i in range(4):
+                score_msg = ScoreMessage(
+                    score=ScoreContent(
+                        baopai=[p.serialize() for p in new_game.score.baopai],
+                        menfeng=new_game.score.menfeng[i],
+                    )
+                )
+                qipai_msg = GameMessage(type="game", game=GameState(action="qipai",qipai="+".join(
+                    sorted([p.serialize() for p in new_game.players[i].shoupai.bingpai])
+                )))
+                if new_game.players[i].socket:
+                    # await self._send_player_initial_state(game, i, qipai_msg)
+                    await self.manager.send_personal_message(
+                        score_msg, new_game.players[i].socket
+                    )
+                    await self.manager.send_personal_message(
+                        qipai_msg, new_game.players[i].socket
+                    )
+                new_game.players[i].last_sent_message=qipai_msg
+
+            # await self._send_zimo(new_game)
             self.manager.reset_callback(new_game)
-
-    async def _send_initial_game_state(self, game: Game) -> None:
-        """初期状態の送信"""
-        qipai_msg = GameMessage(type="game", game=GameState(action="kaiju"))
-
-        for i in range(4):
-            if game.players[i].socket:
-                await self._send_player_initial_state(game, i, qipai_msg)
-
-    async def _send_player_initial_state(
-        self, game: Game, player_index: int, qipai_msg: GameMessage
-    ) -> None:
-        """各プレイヤーへの初期状態送信"""
-        score_msg = ScoreMessage(
-            score=ScoreContent(
-                baopai=[p.serialize() for p in game.score.baopai],
-                menfeng=game.score.menfeng[player_index],
-            )
-        )
-
-        await self.manager.send_personal_message(
-            score_msg, game.players[player_index].socket
-        )
-
-        qipai_msg.game.qipai = "+".join(
-            sorted([p.serialize() for p in game.players[player_index].shoupai.bingpai])
-        )
-        await self.manager.send_personal_message(
-            qipai_msg, game.players[player_index].socket
-        )
 
     async def _send_zimo(self, game: Game) -> None:
         """ツモ牌送信"""
@@ -125,7 +123,6 @@ class WebSocketMessageHandler:
                     game=GameState(
                         action="zimo",
                         turn=game.get_turn(i),
-                        status="thinking",
                         zimopai="b0"
                     ),
                 )
@@ -134,64 +131,76 @@ class WebSocketMessageHandler:
                 zimo_msg.game.zimopai=zimopai.serialize()
             if game.players[i].socket:
                 await self.manager.send_personal_message(zimo_msg, game.players[i].socket)
+            game.players[i].last_sent_message=zimo_msg
+    
+    def _validate_dapai(self,last_dapai: str):
+        parse_dapai=last_dapai.split(",")
+        if len(parse_dapai)!=2 and isinstance(parse_dapai[0],str) and isinstance(parse_dapai[1],int):
+            raise ValueError(f"メッセージが正しくありません.[打牌,牌番号]形式にしてください. dapai:{last_dapai}")
+        return parse_dapai[0],int(parse_dapai[1])
+       
+    async def _send_dapai(self, game: Game) -> None:
+        """打牌送信"""
+        lrms=[game.players[i].last_recieved_message for i in range(4)]
+        last_dapai=next((x.game.dapai for x in lrms if x is not None and x.game.dapai is not None),None)
+        if last_dapai is None:
+            lsms=[game.players[i].last_sent_message for i in range(4)]
+            last_zimo=next((x.game.zimopai for x in lsms if x is not None and x.game.zimopai is not None and x.game.zimopai!="b0"))
+            
+            for i in range(4):
+                dapai_msg = GameMessage(
+                        type="game",
+                        game=GameState(
+                            action="dapai",
+                            turn=game.get_turn(i),
+                            dapai=last_zimo
+                        ),
+                    )
+                if game.players[i].menfeng==game.teban:
+                    game.dapai(i,Pai.deserialize(last_zimo),99)
+                if game.players[i].socket:
+                    await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
+                game.players[i].last_sent_message=dapai_msg
+        else:
+            dapai_str,dapai_idx=self._validate_dapai(last_dapai)
+            for i in range(4):
+                dapai_msg = GameMessage(
+                        type="game",
+                        game=GameState(
+                            action="dapai",
+                            turn=game.get_turn(i),
+                            dapai=dapai_str
+                        ),
+                    )
+                if game.players[i].menfeng==game.teban:
+                    game.dapai(i,Pai.deserialize(dapai_str),dapai_idx)
+                if game.players[i].socket:
+                    await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
+                game.players[i].last_sent_message=dapai_msg
         
-    async def _handle_zimo(self, message: GameMessage) -> None:
-        """ツモ処理"""
+    async def _handle_action(self, message: GameMessage) -> None:
+        """メッセージ処理"""
         self.manager.callback(self.websocket)
+        self._set_game_message_on_player(message)
         game=self.manager.get_game(self.websocket)
-        if self.manager.is_callbacked(game):
-            zimogiri_player=-1
-            for i in range(4):
-                dapai_msg = GameMessage(
-                    type="game", game=GameState(action="dapai", turn=game.get_turn(i), status="thinking")
-                )
-                if game.players[i].socket:
-                    await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
-                else:
-                    if game.players[i].menfeng==game.teban:
-                        zimogiri_player=i
-                        
-            
-            self.manager.reset_callback(game)
-            await self._handle_dapai(zimogiri=zimogiri_player)  if zimogiri_player !=-1 else None
-            
-
-    async def _handle_dapai(self, message: Optional[GameMessage]=None,zimogiri:Optional[Literal[0,1,2,3]]=None) -> None:
-        """打牌処理"""
-        game = self.manager.get_game(self.websocket)
-        # Botのツモ切りであれば全員に通知する
-        if zimogiri !=None:
-            zimopai=game.players[zimogiri].shoupai.zimopai
-            game.dapai(zimogiri,zimopai,99)
-            for i in range(4):
-                dapai_msg = GameMessage(
-                    type="game", game=GameState(action="dapai", turn=game.get_turn(i), status="ready",dapai=zimopai.serialize())
-                )
-                if game.players[i].socket:
-                    await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
+        
+        if not self.manager.is_callbacked(game):
             return
         
-        
-        self.manager.callback(self.websocket)
-        
-        # プレイヤーの打牌
-        if message.game.dapai:
-            parse_dapai=message.game.dapai.split(",")
-            if len(parse_dapai)!=2 and isinstance(parse_dapai[0],str) and isinstance(parse_dapai[1],int):
-                raise ValueError(f"メッセージが正しくありません.[打牌,牌番号]形式にしてください. message.game.dapai:{message.game.dapai}")
-            game.dapai(game.score.menfeng.index(game.teban), Pai.deserialize(parse_dapai[0]),int(parse_dapai[1]))
-            for i in range(4):
-                dapai_msg = GameMessage(
-                    type="game", game=GameState(action="dapai", turn=game.get_turn(i), status="ready",dapai=parse_dapai[0])
-                )
-                if game.players[i].socket and game.players[i].menfeng!=game.teban:
-                    await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
-        
-        
-        if self.manager.is_callbacked(game):
+        lsms=[game.players[i].last_sent_message for i in range(4)]
+        lrms=[game.players[i].last_recieved_message for i in range(4)]
+        last_action=next((x.game.action for x in lsms if x is not None and x.game.action is not None))
+        if last_action=="qipai":
+            await self._send_zimo(game=game)
+            self.manager.reset_callback(game)
+        elif last_action=="zimo":
+            await self._send_dapai(game=game)
+            self.manager.reset_callback(game)
+        elif last_action=="dapai":
             self.manager.reset_callback(game)
             game.next_teban()
             await self._send_zimo(game=game)
+            
 
 
 @router.websocket("/ws")
@@ -206,7 +215,7 @@ async def websocket_endpoint(
             data = await websocket.receive_json()
             print(f"Received message: {data}")
             await handler.handle_message(data)
-
+    
     except WebSocketDisconnect:
         print("Client disconnected")
         manager.disconnect(websocket)

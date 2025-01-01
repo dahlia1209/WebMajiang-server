@@ -16,10 +16,10 @@ MessageType = Literal["message","game","score"]
 class GameState(BaseModel):
     action: Optional[PlayerAction] = Field(default=None)
     turn: Optional[Position] = Field(default=None)
-    status: Optional[PlayerStatus] = Field(default=None)
+    # status: Optional[PlayerStatus] = Field(default=None)
     dapai: Optional[str] = Field(default=None)
     zimopai: Optional[str] = Field(default=None)
-    canFulouList: Optional[List[str]] = Field(default=[])
+    # fulouCandidates: Optional[List[str]] = Field(default=[])
     fulou: Optional[str] = Field(default=None)
     qipai: Optional[str] = Field(default=None)
     

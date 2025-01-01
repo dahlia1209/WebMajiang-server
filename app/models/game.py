@@ -40,11 +40,12 @@ class Game(BaseModel):
             Pai(suit=suit, num=num)
             for suit in ["m", "p", "s"]
             for num in range(1, 10)
-            for _ in range(4 if num != 5 else 3)
+            for _ in range(4)
         ]
 
         # 赤ドラ生成
-        red_pais = [Pai(suit=suit, num=5, is_red=True) for suit in ["m", "p", "s"]]
+        # red_pais = [Pai(suit=suit, num=5, is_red=True) for suit in ["m", "p", "s"]]
+        red_pais = []
 
         # 字牌生成
         honor_pais = [Pai(suit="z", num=num) for num in range(1, 8) for _ in range(4)]
@@ -63,7 +64,7 @@ class Game(BaseModel):
 
         # 手牌セット
         for i in range(4):
-            bingpai = [all_pais.pop() for _ in range(13)]
+            bingpai = sorted([all_pais.pop() for _ in range(13)],key=lambda x: (x.suit, x.num, x.is_red))
             self.players[i].shoupai = Shoupai(bingpai=bingpai)
             self.players[i].he = He()
 
