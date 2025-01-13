@@ -58,7 +58,19 @@ class Score(BaseModel):
         feng_order: List[Feng] = ["東", "南", "西", "北"]
         start_index = feng_order.index(self.menfeng)
         return [*feng_order[start_index:], *feng_order[:start_index]]
-
+    
+    def get_zhuangfeng(self)-> Feng:
+        if 1<=self.jushu<5:
+            return "東"
+        elif 5<=self.jushu<9:
+            return "南"
+        elif 9<=self.jushu<13:
+            return "西"
+        elif 13<=self.jushu<17:
+            return "北"
+        else:
+            raise ValueError(f"局数の設定が正しくありません。jushu:{self.jushu}")
+    
     # def update(self, score: ScoreProperty):
     #     if score.zhuangfeng is not None:
     #         self.zhuangfeng = score.zhuangfeng

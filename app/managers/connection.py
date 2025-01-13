@@ -6,6 +6,7 @@ from app.models.game import Game
 from app.models.rule import Rule
 from ..models.player import Player
 import traceback
+import random
 
 
 class ConnectionManager:
@@ -29,20 +30,33 @@ class ConnectionManager:
             await connection.send_json(message.model_dump())
     
     def create_game(self, websocket: WebSocket,rule:Rule=Rule()):
-        last_game=self.get_game(websocket,True)
+        last_game=self.get_game(websocket)
         new_game=Game(rule=rule,players=([Player(socket=websocket)]+[Player() for _ in range(3)]))
-        new_game.qipai(other=last_game)
+        new_game.select_zuoci()
+        if last_game:
+            new_game=last_game.next_game()
+            self.remove_game(websocket)
+        new_game.qipai()
         self.games.append(new_game)
         self.callbacked_connection.append({websocket:False})
         return new_game
     
-    def get_game(self, websocket: WebSocket,with_remove:bool=False):
+    def get_game(self, websocket: WebSocket):
         for game in self.games:
             for player in game.players:
                 if player.socket == websocket:
-                    self.games.remove(game) if with_remove else None
                     return game
         
+        return None
+    
+    
+    
+    def remove_game(self, websocket: WebSocket):
+        for game in self.games:
+            for player in game.players:
+                if player.socket == websocket:
+                    self.games.remove(game)
+                    return game
         return None
     
     def callback(self,websocket:WebSocket,bool:bool=True):

@@ -18,10 +18,9 @@ def test_Websocket_init():
     game_state = GameState(
         action="dapai",
         turn="duimian",
-        # status="ready",
-        dapai=Pai(suit="p", num=1).serialize(),
+        dapai="m1,99",
         fulou=Fulou(type="peng").serialize(),
-        fulouCandidates=[Fulou(type="chi").serialize() for _ in range(3)],
+        fulouCandidates="|".join([Fulou(type="chi").serialize() for _ in range(3)]),
     )
     score_content = ScoreContent(
         baopai=[Pai(suit="p", num=1).serialize() for _ in range(5)],

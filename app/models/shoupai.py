@@ -842,3 +842,13 @@ class Shoupai(BaseModel):
     
     def get_fuloupais(self):
         return [p for f in self.fulou for p in f.get_pais()]
+    
+    def get_serialized_fulou_candidates(self):
+        if not self.fulou_candidates:
+            return None
+        return "|".join([f.serialize() for f in self.fulou_candidates])
+    
+    def get_serialized_lizhi_pai(self):
+        if not self.lizhi_pai:
+            return None
+        return "+".join([p.serialize() for p in self.lizhi_pai])

@@ -19,7 +19,8 @@ class GameState(BaseModel):
     # status: Optional[PlayerStatus] = Field(default=None)
     dapai: Optional[str] = Field(default=None)
     zimopai: Optional[str] = Field(default=None)
-    # fulouCandidates: Optional[List[str]] = Field(default=[])
+    fulouCandidates: Optional[str] = Field(default=None)
+    lizhiPai: Optional[str] = Field(default=None)
     fulou: Optional[str] = Field(default=None)
     qipai: Optional[str] = Field(default=None)
     
@@ -31,6 +32,7 @@ class ScoreContent(BaseModel):
     changbang: Optional[int] = Field(default=0)
     defen: Optional[List[int]] = Field(default=[25000,25000,25000,25000])
     baopai: Optional[List[str]] = Field(default=["b0","b0","b0","b0","b0"])
+    paishu:Optional[int]=Field(default=70)
 
 # ベースメッセージモデル
 class BaseMessage(BaseModel):

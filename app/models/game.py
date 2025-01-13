@@ -30,11 +30,7 @@ class Game(BaseModel):
     score: Score = Field(default=Score())
     teban: Feng = Field(default="東")
 
-    def qipai(self, other: Optional[Self] = None):
-        if other:
-            self.players = other.players
-            self.score = other.score
-            self.rule = other.rule
+    def qipai(self):
         # 数牌（赤ドラ以外）生成
         normal_pais = [
             Pai(suit=suit, num=num)
@@ -60,7 +56,8 @@ class Game(BaseModel):
             lingshangpai=wangpai[:4], baopai=wangpai[4:9], libaopai=wangpai[9:14]
         )
         # 通知用メッセージにドラ設定
-        self.score = Score(baopai=self.wangpai.get_baopai())
+        # self.score = Score(baopai=self.wangpai.get_baopai())
+        self.score.baopai=self.wangpai.get_baopai()
 
         # 手牌セット
         for i in range(4):
@@ -71,23 +68,12 @@ class Game(BaseModel):
         # 山牌セット
         self.shan = Shan(pais=all_pais)
 
-        # 自風決め
-        if other:
-            t = self.players[0].menfeng
-            self.players[0].menfeng = self.players[1].menfeng
-            self.players[1].menfeng = self.players[2].menfeng
-            self.players[2].menfeng = self.players[3].menfeng
-            self.players[3].menfeng = t
-            for i in range(4):
-                self.players[i].menfeng
-            self.score.menfeng = [self.players[i].menfeng for i in range(4)]
-
-        else:
-            random.shuffle(self.players)
-            for i, f in enumerate(["東", "南", "西", "北"]):
-                self.players[i].menfeng = f
-                self.score.menfeng[i] = f
-
+    def select_zuoci(self):
+        random.shuffle(self.players)
+        for i, f in enumerate(["東", "南", "西", "北"]):
+            self.players[i].menfeng = f
+            self.score.menfeng[i] = f
+    
     def zimo(self, num: Literal[0, 1, 2, 3]):
         """
         Args:
@@ -112,7 +98,26 @@ class Game(BaseModel):
         # 一発消し
         for i in range(4):
             self.players[i].shoupai.is_yifa = False
-
+    
+    def get_last_recieved_fulou(self):
+        fulou=None
+        for i in range(4):
+            if self.players[i].last_recieved_message and self.players[i].last_recieved_message.game.fulou:
+                fulou=self.players[i].last_recieved_message.game.fulou
+        
+        if fulou is  None:
+            raise ValueError(f"プレイヤーの副露情報が取得できません")
+        return fulou
+    
+    def get_last_recieved_fulou_player(self):
+        fulou_player_idx=None
+        for i in range(4):
+            if self.players[i].last_recieved_message and self.players[i].last_recieved_message.game.fulou:
+                fulou_player_idx=i
+        if fulou_player_idx is  None:
+            raise ValueError(f"プレイヤーの副露情報が取得できません")
+        return fulou_player_idx
+    
     def lizhi(self, num: Literal[0, 1, 2, 3], dapai: Pai, dapai_idx: int):
         is_double_lizhi = (
             all(len(self.players[i].shoupai.fulou) == 0 for i in range(4))
@@ -139,6 +144,24 @@ class Game(BaseModel):
         best_hupai=self._calculate_hu(num, best_hupai)
         defen=self._calcualate_defen(num,best_hupai)
         self.score.defen=[x + y for x, y in zip(self.score.defen, defen)]
+        
+    def pingju(self):
+        tingpai_ary=[self.players[i].shoupai.xiangting==0 for i in range(4)]
+        pingju_defen=[0, 0, 0, 0]
+        if all(tingpai_ary) or not any(tingpai_ary):
+            return pingju_defen
+        true_count = sum(tingpai_ary)
+        false_count = len(tingpai_ary) - true_count
+        
+        # 1つの配分値を計算
+        true_value = int(3000 / true_count)
+        false_value = int(-true_value * true_count / false_count)
+        
+        # 結果の配列を作成
+        pingju_defen= [true_value if x else false_value for x in tingpai_ary]
+        self.score.defen=[x + y for x, y in zip(self.score.defen, pingju_defen)]
+        return pingju_defen
+        
         
     def _calcualate_defen(self,num: Literal[0, 1, 2, 3],hupai:Hupai):
         if hupai.fanshu==0:
@@ -933,3 +956,26 @@ class Game(BaseModel):
         else:
             self.teban = "東"
         return self.teban
+    
+    def get_next_feng(self,feng:Feng):
+        feng_list:List[Feng]=["東", "北", "西", "南"]
+        feng_idx=feng_list.index(feng)
+        return feng_list[feng_idx+1] if 0<=feng_idx<3 else "東"
+    
+    def next_game(self):
+        players=[p.model_copy() for p in self.players]
+        for p in players:
+            p.menfeng=self.get_next_feng(p.menfeng)
+            p.shoupai=Shoupai()
+        shan=Shan()
+        wangpai=Wangpai()
+        rule=self.rule.model_copy()
+        score=Score()
+        score.defen=self.score.defen
+        score.jushu=self.score.jushu+1
+        score.zhuangfeng=score.get_zhuangfeng()
+        for i in range(4):
+            score.menfeng[i]=self.get_next_feng(self.score.menfeng[i])
+        teban="東"
+        return Game(players=players,shan=shan,wangpai=wangpai,rule=rule,score=score,teban=teban)
+        

@@ -7,6 +7,8 @@ origins = [
     "http://localhost",
     "http://localhost:4173",
     "http://localhost:5173",
+    "https://delightful-glacier-0813e7e10.4.azurestaticapps.net",
+    "https://majiang.ryu-nakamura.com/",
 ]
 
 app.add_middleware(

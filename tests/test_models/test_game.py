@@ -91,6 +91,7 @@ def test_game_init():
 
 def test_qipai(): 
     game = Game()
+    game.select_zuoci()
     game.qipai()
     assert len(game.shan.pais) == 70
     for i in range(4):
@@ -103,17 +104,13 @@ def test_qipai():
     assert game.score.menfeng==["東", "南", "西", "北"]
 
     old_game = game.model_copy()
-    next_game = Game()
-    next_game.players = [Player() for _ in range(4)]
+    print("old_game.players[0].menfeng",old_game.players[0].menfeng)
+    next_game = game.next_game()
+    print("old_game.players[0].menfeng,next_game.players[0].menfeng",old_game.players[0].menfeng,next_game.players[0].menfeng)
     next_game.qipai()
     for i in range(4): # 時々エラーが起きる
-        assert (
-            next_game.players[i].shoupai.bingpai[0]
-            != old_game.players[i].shoupai.bingpai[0]
-            or next_game.players[i].shoupai.bingpai[12]
-            != old_game.players[i].shoupai.bingpai[12]
-        )
-        assert next_game.players[i].menfeng == old_game.players[i].menfeng
+        assert any(next_game.players[i].shoupai.bingpai[j]!= old_game.players[i].shoupai.bingpai[j] for j in range(13))
+        assert next_game.players[i].menfeng == game.get_next_feng(old_game.players[i].menfeng)
         assert len(next_game.players[i].shoupai.bingpai)==13
         assert len(old_game.players[i].shoupai.bingpai)==13
 
@@ -126,16 +123,16 @@ def test_qipai():
     old_game.wangpai.libaopai=[]
     old_game.score.baopai=[Pai(suit="b",num=0)]
     
-    next_game.qipai(old_game)
+    next_game.qipai()
     assert len(next_game.shan.pais) == 70
     for i in range(4):
         assert len(next_game.players[i].shoupai.bingpai) == 13
-        assert next_game.players[i].menfeng == [ "南", "西", "北","東"][i]
+        assert next_game.players[i].menfeng == [ "北", "東", "南","西"][i]
     assert len(next_game.wangpai.baopai) == 5
     assert len(next_game.wangpai.libaopai) == 5
     assert len(next_game.wangpai.lingshangpai) == 4
     assert next_game.score.baopai[0]==next_game.wangpai.baopai[0]
-    assert next_game.score.menfeng==["南", "西", "北","東"]
+    assert next_game.score.menfeng==[ "北", "東", "南","西"]
 
 def test_zimo():
     game = Game()
@@ -158,14 +155,13 @@ def test_dapai():
             game.dapai(i,dapai,0)
             assert len(game.players[i].shoupai.bingpai)==13
 
-def test_next_teban():
+def test_get_next_feng():
     game = Game()
-    game.qipai()
-    assert game.next_teban()=="南"
-    assert game.next_teban()=="西"
-    assert game.next_teban()=="北"
-    assert game.next_teban()=="東"
-    assert game.next_teban()=="南"
+    assert game.get_next_feng("東")=="北"
+    assert game.get_next_feng("南")=="東"
+    assert game.get_next_feng("西")=="南"
+    assert game.get_next_feng("北")=="西"
+    assert game.get_next_feng("東")=="北"
 
 def get_turn():
     game = Game()
@@ -1175,6 +1171,28 @@ def test_calcualate_defen():
                                     assert result_defen[i]<0
                                 else:
                                     assert result_defen[i]==0
+
+def test_pingju():
+    game = Game()
+    # 基本的な配分パターンのテスト
+    test_cases = [
+        ([0, 0, 1, 1], [1500, 1500, -1500, -1500],[26500, 26500, 23500, 23500],),
+        ([0, 1, 1, 1], [3000, -1000, -1000, -1000],[28000, 24000, 24000, 24000]),
+        ([1, 0, 2, 3], [-1000, 3000, -1000, -1000],[24000, 28000, 24000, 24000]),
+        ([0, 0, 0, 1], [1000, 1000, 1000, -3000],[26000, 26000, 26000, 22000]),
+        ([0, 0, 0, 0], [0, 0, 0, 0],[25000, 25000, 25000, 25000]),
+        ([1, 2, 3, 4], [0, 0, 0, 0],[25000, 25000, 25000, 25000])
+    ]
+    
+    for input_array, expected_pingju_defen,expected_defen in test_cases:
+        game.score.defen=[25000, 25000, 25000, 25000]
+        for i in range(4):
+            game.players[i].shoupai.xiangting=int(input_array[i])
+        result = game.pingju()
+        assert result==expected_pingju_defen
+        assert sum(result)==0
+        assert game.score.defen==expected_defen
+        
                                     
     
 
