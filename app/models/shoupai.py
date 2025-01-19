@@ -92,6 +92,10 @@ class Shoupai(BaseModel):
     lizhi_flag: int = Field(default=0)
     is_yifa: bool = Field(default=False)
 
+    def do_qipai(self):
+        # シャン点数計算
+        self._compute_xiangting()
+    
     def do_zimo(self, pai: Pai):
         if self.zimopai is not None:
             raise ValueError(f"ツモ牌がすでに存在します.zimopai:{self.zimopai}")
@@ -101,8 +105,7 @@ class Shoupai(BaseModel):
         # self._check_hule()
 
         # リーチ候補探索
-        if not self.lizhi_flag:
-            self._comupute_lizhi_candidates()
+        self._comupute_lizhi_candidates()
 
         # 副露候補候補
         self._compute_fulou_candidates(fulou_type=["angang", "jiagang"])
@@ -128,7 +131,7 @@ class Shoupai(BaseModel):
         # 副露候補候補
         self._compute_fulou_candidates(fulou_type=["chi", "peng", "minggang"])
 
-        # アガリ系探索
+        # シャン点数計算
         self._compute_xiangting()
 
         # 一発は消える
@@ -222,21 +225,6 @@ class Shoupai(BaseModel):
 
     def do_lizhi(self, dapai: Pai, dapai_idx: int,is_double_lizhi:bool=False):
         self.do_dapai(dapai, dapai_idx)
-
-        # dapai: Pai
-        # if 0 <= dapai_idx < len(self.bingpai):
-        #     dapai = self.bingpai.pop(dapai_idx)
-        # elif dapai_idx == 99:
-        #     dapai = self.zimopai
-        #     self.zimopai = None
-
-        # ツモ牌を手牌に加えてソート
-        # sorted_pais = sorted(
-        #     self.bingpai + ([self.zimopai] if self.zimopai else []),
-        #     key=lambda x: (x.suit, x.num, x.is_red),
-        # )
-        # self.zimopai = None
-        # self.bingpai = sorted_pais
 
         # リーチフラグ
         self.lizhi_flag = 1 if not is_double_lizhi else 2
@@ -797,6 +785,7 @@ class Shoupai(BaseModel):
                 self.fulou and [f for f in self.fulou if f.type != "angang"]
             )  # 副露が暗槓以外ある
             or not self.zimopai  # ツモ牌が存在しない
+            or self.lizhi_flag #立直中
         ):
             return lizhi_pai
 
@@ -852,3 +841,8 @@ class Shoupai(BaseModel):
         if not self.lizhi_pai:
             return None
         return "+".join([p.serialize() for p in self.lizhi_pai])
+    
+    def get_serialized_hule_pai(self):
+        if not self.hule_candidates:
+            return None
+        return "+".join([pat.pais[-1].serialize() for pat in self.hule_candidates])

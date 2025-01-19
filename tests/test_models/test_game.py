@@ -1192,9 +1192,59 @@ def test_pingju():
         assert result==expected_pingju_defen
         assert sum(result)==0
         assert game.score.defen==expected_defen
-        
-                                    
+
+def test_lizhi():
+    #立直
+    game=Game()
+    game.score.zhuangfeng="東"
+    game.teban="東"
+    game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
+    game.players[0].menfeng="東"
+    game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m1","m1","m3","m4","m5","m8","m8","m8","p1","p1","p3","p4"]]
+    game.players[0].shoupai.zimopai=Pai.deserialize("z1")
+    game.lizhi(0,game.players[0].shoupai.zimopai,99)
+    assert game.players[0].shoupai.lizhi_flag==1
+    assert game.players[0].shoupai.is_yifa==True
+    assert game.players[0].shoupai.zimopai==None
+    assert len(game.players[0].shoupai.hule_candidates)==2
     
+    #ダブル立直
+    game=Game()
+    game.score.zhuangfeng="南"
+    game.teban="南"
+    game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
+    game.players[0].menfeng="南"
+    game.players[0].he.pais=[Pai.deserialize(s) for s in []]
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m1","m1","m3","m4","m5","m8","m8","m8","p1","p1","p3","p4"]]
+    game.players[0].shoupai.zimopai=Pai.deserialize("z1")
+    game.lizhi(0,game.players[0].shoupai.zimopai,99)
+    assert game.players[0].shoupai.lizhi_flag==2
+    assert game.players[0].shoupai.is_yifa==True
+    assert game.players[0].shoupai.zimopai==None
+    assert len(game.players[0].shoupai.hule_candidates)==2
+    
+def test_hule():
+    #平和ロンアガリ
+    game = Game()
+    game.score.zhuangfeng="南"
+    game.teban="東"
+    game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
+    for p, mf in zip(game.players, ["南","西","北","東"]):
+        p.menfeng = mf
+    game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
+    hulepai=Pai.deserialize("p8")
+    game.players[0].shoupai.lizhi_flag=False
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[hulepai])]
+    hupai=game.hule(0,hulepai)
+    assert game.score.defen==[26000,25000,25000,24000]
+    assert hupai.fanshu==1
+    assert hupai.hu==30
+    assert hupai.name==["平和"]
+                                    
+
 
     
     

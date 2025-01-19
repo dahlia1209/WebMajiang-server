@@ -20,9 +20,10 @@ class GameState(BaseModel):
     dapai: Optional[str] = Field(default=None)
     zimopai: Optional[str] = Field(default=None)
     fulouCandidates: Optional[str] = Field(default=None)
-    lizhiPai: Optional[str] = Field(default=None)
+    lizhipai: Optional[str] = Field(default=None)
     fulou: Optional[str] = Field(default=None)
     qipai: Optional[str] = Field(default=None)
+    hule: Optional[str] = Field(default=None)
     
 class ScoreContent(BaseModel):
     zhuangfeng: Optional[Feng] = Field(default="東")

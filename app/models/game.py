@@ -12,6 +12,7 @@ from .type import Feng, PlayerAction, Position
 import random
 from collections import Counter
 from dataclasses import dataclass, field
+from fastapi import WebSocket
 
 
 @dataclass
@@ -63,7 +64,9 @@ class Game(BaseModel):
         for i in range(4):
             bingpai = sorted([all_pais.pop() for _ in range(13)],key=lambda x: (x.suit, x.num, x.is_red))
             self.players[i].shoupai = Shoupai(bingpai=bingpai)
+            self.players[i].shoupai.do_qipai()
             self.players[i].he = He()
+            
 
         # 山牌セット
         self.shan = Shan(pais=all_pais)
@@ -109,6 +112,7 @@ class Game(BaseModel):
             raise ValueError(f"プレイヤーの副露情報が取得できません")
         return fulou
     
+    
     def get_last_recieved_fulou_player(self):
         fulou_player_idx=None
         for i in range(4):
@@ -144,6 +148,8 @@ class Game(BaseModel):
         best_hupai=self._calculate_hu(num, best_hupai)
         defen=self._calcualate_defen(num,best_hupai)
         self.score.defen=[x + y for x, y in zip(self.score.defen, defen)]
+        print("hule,best_hupai,num",best_hupai,num)
+        return best_hupai
         
     def pingju(self):
         tingpai_ary=[self.players[i].shoupai.xiangting==0 for i in range(4)]
@@ -978,4 +984,14 @@ class Game(BaseModel):
             score.menfeng[i]=self.get_next_feng(self.score.menfeng[i])
         teban="東"
         return Game(players=players,shan=shan,wangpai=wangpai,rule=rule,score=score,teban=teban)
+    
+    def get_player(self,websocket:WebSocket):
+        player:Optional[Player]=None
+        for i in range(4):
+            if self.players[i].socket==websocket:
+                player=self.players[i]
         
+        if player is None:
+            raise ValueError("指定したプレイヤーは存在しません")
+        
+        return player

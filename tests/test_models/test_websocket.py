@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
-from app.routers.websocket import router, get_connection_manager
+from app.routers.websocket import router
 from pydantic import BaseModel
 from typing import Union, List
 from app.models.websocket import GameState, ScoreContent, GameMessage, ScoreMessage

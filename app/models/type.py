@@ -5,7 +5,7 @@ Feng = Literal["東", "南", "西", "北"]
 
 PaiSuit = Literal["b","m", "p", "s", "z"]
 
-PlayerAction = Literal["zimo", "dapai", "fulou", "hule", "lingshangzimo","kaiju","qipai","pingju","jieju"]
+PlayerAction = Literal["zimo", "dapai", "fulou", "hule", "lingshangzimo","kaiju","qipai","pingju","jieju","lizhi"]
 
 Position=Literal["main","xiajia","duimian","shangjia"]
 

@@ -13,7 +13,9 @@ from app.models.type import PlayerAction,Position,PlayerStatus,Feng
 from ..managers.connection import ConnectionManager
 from ..models.pai import Pai
 from ..models.game import Game
+from ..models.player import Player
 from ..models.shoupai import Fulou 
+from ..models.rule import Rule 
 from ..models.websocket import (
     SimpleMessage,
     BaseMessage,
@@ -23,18 +25,66 @@ from ..models.websocket import (
     ScoreMessage,
 )
 import traceback
+from itertools import chain
+from threading import local,Lock
 
 router = APIRouter()
-con_mgr = ConnectionManager()
+# _con_mgr = ConnectionManager()
 
-def get_connection_manager():
-    return con_mgr
-
+# def get_connection_manager():
+#     return _con_mgr
 
 class WebSocketMessageHandler:
-    def __init__(self, websocket: WebSocket, connection_manager: ConnectionManager):
-        self.websocket = websocket
+    _instance: Optional['WebSocketMessageHandler'] = None
+    _lock = Lock()
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self, connection_manager: ConnectionManager=ConnectionManager()):
         self.manager = connection_manager
+        self._thread_local: local = local()
+        self._lock = Lock()
+        # self.value = 0
+        self.games:List[Game]=[]
+    
+    def _set_local_websocket(self,websocket:WebSocket):
+        self._thread_local.websocket = websocket
+
+    def _get_local_websocket(self) :
+        websocket:WebSocket= getattr(self._thread_local, 'websocket', None)
+        if websocket is None:
+            raise ValueError("Websokcetがセットされていません")
+        return websocket
+    
+    def _get_game(self):
+        for game in self.games:
+            for player in game.players:
+                if player.socket == self._get_local_websocket():
+                    return game
+        
+        return None
+    
+    def _remove_game(self):
+        game=self._get_game()
+        if game is None:
+            return
+        
+        self.games.remove(game)
+        return game
+    
+    def _create_game(self, rule:Rule=Rule()):
+        new_game=Game(rule=rule,players=([Player(socket=self._get_local_websocket())]+[Player() for _ in range(3)]))
+        new_game.select_zuoci()
+        last_game=self._get_game()
+        if last_game:
+            new_game=last_game.next_game()
+            self._remove_game()
+        new_game.qipai()
+        self.games.append(new_game)
+        return new_game
 
     async def handle_message(self, message_data: dict) -> None:
         """メインのメッセージハンドリングフロー"""
@@ -57,18 +107,20 @@ class WebSocketMessageHandler:
     async def _handle_simple_message(self, data: dict) -> None:
         """シンプルメッセージの処理"""
         message = SimpleMessage(**data)
-        await self.websocket.send_json(message.model_dump())
+        await self._get_local_websocket().send_json(message.model_dump())
 
     async def _handle_game_message(self, data: dict) -> None:
         """ゲームメッセージの処理"""
         message = GameMessage(**data)
         handlers = {
             "kaiju": self._handle_kaiju,
-            "qipai": self._handle_action,
-            "zimo": self._handle_action,
-            "fulou": self._handle_action,
-            "dapai": self._handle_action,
+            "qipai": self._handle_qipai,
+            "zimo": self._handle_zimo,
+            "fulou": self._handle_fulou,
+            "dapai": self._handle_dapai,
             "pingju":self._handle_pingju,
+            "hule":self._handle_hule,
+            "lizhi":self._handle_lizhi,
         }
 
         handler = handlers.get(message.game.action)
@@ -80,33 +132,41 @@ class WebSocketMessageHandler:
 
         await handler(message)
 
-    def _set_game_message_on_player(self,message: GameMessage):
-        game=self.manager.get_game(self.websocket)
-        for i in range(4):
-            if game.players[i].socket==self.websocket:
-                game.players[i].last_recieved_message=message
+    def _handle_callback(self,message: GameMessage):
+        game=self._get_game()
+        if game is None:
+            raise ValueError("Gameが存在しないためコールバック処理ができません。")
+        player=game.get_player(self._get_local_websocket())
+        player.last_recieved_message=message
+        
     
+    def _is_callbacked(self):
+        game=self._get_game()
+        if game is None:
+            raise ValueError("Gameが存在しないためコールバック処理ができません。")
+        return all(
+                   game.players[i].is_recieved_message()
+                   for i in range(4) if not game.players[i].is_bot()
+                )
+        
     async def _handle_kaiju(self, message: GameMessage) -> None:
         """開局処理"""
-        new_game = self.manager.create_game(websocket=self.websocket)
-        self._set_game_message_on_player(message)
-        result = self.manager.callback(self.websocket)
-        
-        if not self.manager.is_callbacked(new_game):
+        new_game = self._create_game()
+        self._handle_callback(message)
+        if not self._is_callbacked():
             return
         
         await self._send_kaiju(new_game)
     
     async def _handle_pingju(self, message: GameMessage) -> None:
         """流局処理"""
-        self._set_game_message_on_player(message)
-        result = self.manager.callback(self.websocket)
-        game=self.manager.get_game(self.websocket)
-        if not self.manager.is_callbacked(game):
+        self._handle_callback(message)
+        game=self._get_game()
+        if not self._is_callbacked():
             return
         game.pingju()
         if 1<=game.score.jushu+1<=8:
-            new_game = self.manager.create_game(websocket=self.websocket)
+            new_game = self._create_game()
             await self._send_kaiju(new_game)
         else:
             await self._send_jieju(game)
@@ -125,7 +185,8 @@ class WebSocketMessageHandler:
             if game.players[i].menfeng==game.teban:
                 zimopai=game.zimo(i)
                 zimo_msg.game.fulouCandidates=game.players[i].shoupai.get_serialized_fulou_candidates()
-                zimo_msg.game.lizhiPai=game.players[i].shoupai.get_serialized_lizhi_pai()
+                zimo_msg.game.lizhipai=game.players[i].shoupai.get_serialized_lizhi_pai()
+                zimo_msg.game.hule=game.players[i].shoupai.get_serialized_hule_pai()
                 zimo_msg.game.zimopai=zimopai.serialize()
                 
             if game.players[i].socket:
@@ -166,12 +227,13 @@ class WebSocketMessageHandler:
                         game=GameState(
                             action="dapai",
                             turn=game.get_turn(i),
-                            dapai=",".join([last_zimo,"99"])
+                            dapai=",".join([last_zimo,"99"]),
                         ),
                     )
                 if game.players[i].menfeng==game.teban:
                     game.dapai(i,Pai.deserialize(last_zimo),99)
                 if game.players[i].socket:
+                    dapai_msg.game.hule=game.players[i].shoupai.get_serialized_hule_pai()
                     await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
                 game.players[i].last_sent_message=dapai_msg
         else:
@@ -188,10 +250,29 @@ class WebSocketMessageHandler:
                 if game.players[i].menfeng==game.teban:
                     game.dapai(i,Pai.deserialize(dapai_str),dapai_idx)
                     dapai_msg.game.fulouCandidates=game.players[i].shoupai.get_serialized_fulou_candidates()
-                    dapai_msg.game.lizhiPai=game.players[i].shoupai.get_serialized_lizhi_pai()
+                    dapai_msg.game.lizhipai=game.players[i].shoupai.get_serialized_lizhi_pai()
+                    dapai_msg.game.hule=game.players[i].shoupai.get_serialized_hule_pai()
                 if game.players[i].socket:
                     await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
                 game.players[i].last_sent_message=dapai_msg
+    
+    async def _send_lizhi(self, game: Game) -> None:
+        """立直送信"""
+        lrms=[game.players[i].last_recieved_message for i in range(4)]
+        last_lizhipai=next((x.game.lizhipai for x in lrms if x is not None and x.game.lizhipai is not None),None)
+        lizhipai_str,lizhipai_idx=self._validate_dapai(last_lizhipai)
+        for i in range(4):
+            lizhipai_msg = GameMessage(
+                type="game",
+                game=GameState(
+                    action="lizhi",
+                    turn=game.get_turn(i),
+                    dapai=",".join([lizhipai_str,str(lizhipai_idx)])
+                ),
+            )
+            if game.players[i].socket:
+                await self.manager.send_personal_message(lizhipai_msg, game.players[i].socket)
+            game.players[i].last_sent_message=lizhipai_msg
     
     async def _send_pingju(self, game: Game) -> None:
         """流局送信"""
@@ -206,6 +287,21 @@ class WebSocketMessageHandler:
                 await self.manager.send_personal_message(pingju_msg, game.players[i].socket)
             game.players[i].last_sent_message=pingju_msg
             
+    async def _send_hule(self, game: Game) -> None:
+        """和了送信"""
+        for i in range(4):
+            hule_msg = GameMessage(
+                    type="game",
+                    game=GameState(
+                        action="hule",
+                        turn=game.get_turn(i),
+                        
+                    ),
+                )
+            if game.players[i].socket:
+                await self.manager.send_personal_message(hule_msg, game.players[i].socket)
+            game.players[i].last_sent_message=hule_msg
+            
     async def _send_kaiju(self, game: Game) -> None:
         """開局送信"""
         for i in range(4):
@@ -215,14 +311,14 @@ class WebSocketMessageHandler:
                     menfeng=game.score.menfeng[i],
                     paishu=70,
                     jushu=game.score.jushu,
-                    zhuangfeng=game.score.zhuangfeng
+                    zhuangfeng=game.score.zhuangfeng,
+                    defen=game.score.defen
                 )
             )
             qipai_msg = GameMessage(type="game", game=GameState(action="qipai",qipai="+".join(
                 sorted([p.serialize() for p in game.players[i].shoupai.bingpai])
             )))
             if game.players[i].socket:
-                # await self._send_player_initial_state(game, i, qipai_msg)
                 await self.manager.send_personal_message(
                     score_msg, game.players[i].socket
                 )
@@ -250,64 +346,162 @@ class WebSocketMessageHandler:
             if game.players[i].socket:
                 await self.manager.send_personal_message(fulou_msg, game.players[i].socket)
             game.players[i].last_sent_message=fulou_msg
+            
     
-    async def _handle_action(self, message: GameMessage) -> None:
-        """メッセージ処理"""
-        self.manager.callback(self.websocket)
-        self._set_game_message_on_player(message)
-        game=self.manager.get_game(self.websocket)
+    async def _handle_qipai(self, message: GameMessage) -> None:
+        """配牌処理"""
+        self._handle_callback(message)
+        game=self._get_game()
         
-        if not self.manager.is_callbacked(game):
+        if not self._is_callbacked():
             return
         
-        lsms=[game.players[i].last_sent_message for i in range(4)]
-        last_action=next((x.game.action for x in lsms if x is not None and x.game.action is not None))
-        # recieved_action:List[Union[PlayerAction,None]]=[game.players[i].last_recieved_message.game.action if game.players[i].last_recieved_message else None  for i in range(4) ]
-        # print("last_action,recieved_action",last_action,recieved_action)
-        if last_action=="qipai":
+        next_action,player=self._get_next_action(game)
+        if next_action=="qipai":
             await self._send_zimo(game=game)
-            self.manager.reset_callback(game)
-        elif last_action=="zimo":
-            await self._send_dapai(game=game)
-            self.manager.reset_callback(game)
-        elif last_action=="dapai":
-            if any(p.last_recieved_message and p.last_recieved_message.game.fulou for p in game.players):
-                idx=game.get_last_recieved_fulou_player()
-                game.teban=game.players[idx].menfeng
-                print("idx",idx)
-                await self._send_fulou(game=game)
+        else:
+            raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+            
+    async def _handle_dapai(self, message: GameMessage) -> None:
+        """打牌後のリアクションのハンドリング"""
+        self._handle_callback(message)
+        game=self._get_game()
+        
+        if not self._is_callbacked():
+            return
+        
+        next_action,player=self._get_next_action(game)
+        if next_action=="hule":
+            if game.players[player].last_recieved_message is None or  game.players[player].last_recieved_message.game.hule is None:
+                raise ValueError("和了牌が存在しません")
+            hulepai=Pai.deserialize(game.players[player].last_recieved_message.game.hule)
+            game.hule(player,hulepai)
+            game.teban=game.players[player].menfeng
+            await self._send_hule(game=game)
+        elif next_action=="fulou":
+            game.teban=game.players[player].menfeng
+            await self._send_fulou(game=game)
+        elif next_action=="dapai" or next_action=="lizhi" :
+            if len(game.shan.pais)==0:
+                await self._send_pingju(game=game)
             else:
-                if len(game.shan.pais)==0:
-                    await self._send_pingju(game=game)
-                else:
-                    game.next_teban()
-                    await self._send_zimo(game=game)
-            self.manager.reset_callback(game)
-        elif last_action=="fulou":
+                game.next_teban()
+                await self._send_zimo(game=game)
+        else:
+            raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+    
+    async def _handle_lizhi(self, message: GameMessage) -> None:
+        """立直宣言後のリアクションのハンドリング"""
+        await self._handle_dapai(message)
+        
+    
+    async def _handle_zimo(self, message: GameMessage) -> None:
+        """自摸後のリアクションのハンドリング"""
+        self._handle_callback(message)
+        game=self._get_game()
+        
+        if not self._is_callbacked():
+            return
+        
+        next_action,player=self._get_next_action(game)
+        if next_action=="hule":
+            if game.players[player].last_recieved_message is None or  game.players[player].last_recieved_message.game.hule is None:
+                raise ValueError("和了牌が存在しません")
+            hulepai=Pai.deserialize(game.players[player].last_recieved_message.game.hule)
+            game.hule(player,hulepai)
+            await self._send_hule(game=game)
+        elif next_action=="lizhi":
+            if   game.players[player].last_recieved_message is None or  game.players[player].last_recieved_message.game.lizhipai is None:
+                raise ValueError("和了牌が存在しません")
+            dapai_str,dapai_idx=self._validate_dapai(game.players[player].last_recieved_message.game.lizhipai)
+            game.lizhi(player,Pai.deserialize(dapai_str),dapai_idx)
+            await self._send_lizhi(game=game)
+        elif next_action=="fulou":
+            pass
+        elif next_action=="dapai":
             await self._send_dapai(game=game)
-            self.manager.reset_callback(game)
-            
-            
+        elif next_action=="zimo":
+            await self._send_dapai(game=game)
+        else:
+            raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+    
+    async def _handle_fulou(self, message: GameMessage) -> None:
+        """副露処理"""
+        self._handle_callback(message)
+        game=self._get_game()
+        
+        if not self._is_callbacked():
+            return
+        
+        next_action,player=self._get_next_action(game)
+        if next_action=="hule":
+            pass
+        elif next_action=="fulou":
+            pass
+        elif next_action=="dapai":
+            await self._send_dapai(game=game)
+        else:
+            raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+        
+    async def _handle_hule(self, message: GameMessage) -> None:
+        """和了処理"""
+        self._handle_callback(message)
+        game=self._get_game()
+        
+        if not self._is_callbacked():
+            return
+        
+        next_action,player=self._get_next_action(game)
+        if next_action=="hule":
+            if 1<=game.score.jushu+1<=8:
+                new_game = self._create_game()
+                await self._send_kaiju(new_game)
+            else:
+                await self._send_jieju(game)
+        else:
+            raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+        
+    def _get_next_action(self,game:Game):
+        next_action:Union[PlayerAction,None]
+        player:int
+        
+        player,next_action=next(
+            chain(
+                ((i,"hule") for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.hule),
+                ((i,"lizhi") for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.lizhipai),
+                ((i,"fulou") for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.fulou),
+                ((i,"dapai") for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.dapai),
+                ((i,p.last_recieved_message.game.action) for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.action is not None)
+                ),
+            (-1,None))
+        
+        if next_action is None:
+            raise ValueError("次のアクションが取得できません")
+        
+        return next_action,player
 
+def get_websocket_handler_manager():
+    return WebSocketMessageHandler()
 
 @router.websocket("/ws")
 async def websocket_endpoint(
-    websocket: WebSocket, manager: ConnectionManager = Depends(get_connection_manager)
+    websocket: WebSocket, handler: WebSocketMessageHandler = Depends(get_websocket_handler_manager)
 ):
-    await manager.connect(websocket)
-    handler = WebSocketMessageHandler(websocket, manager)
+    await handler.manager.connect(websocket)
 
     try:
         while True:
+            handler._set_local_websocket(websocket)
             data = await websocket.receive_json()
             print(f"Received message: {data}")
             await handler.handle_message(data)
     
     except WebSocketDisconnect:
         print("Client disconnected")
-        manager.disconnect(websocket)
+        handler.manager.disconnect(websocket)
 
     except Exception as e:
         print(f"Error handling message: {str(e)}")
         print(f"エラー発生場所:\n{traceback.format_exc()}")
         await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+

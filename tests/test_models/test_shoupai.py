@@ -43,6 +43,9 @@ def test_do_zimo():
         shoupai.bingpai.append(shoupai.zimopai)
         shoupai.zimopai=None
     assert len(shoupai.bingpai)==13
+    shoupai.xiangting=0
+    shoupai.do_zimo(Pai.deserialize("m7"))
+    assert len(shoupai.lizhi_pai)==7
     
     #例外
     shoupai=Shoupai()
@@ -90,6 +93,7 @@ def test_do_dapai():
     with pytest.raises(ValueError):
         shoupai.zimopai=Pai.deserialize("m1")
         shoupai.do_dapai(dapai=Pai.deserialize("s1"),dapai_idx=14)
+
 
 def test_do_fulou():
     bingpai=[Pai.deserialize(s) for s in ["m2","m3","z1","z1","z2","z2","z2","z3","z3","z3","z3","z4","z4"]]
@@ -943,4 +947,5 @@ def test_compute_fulou_candidates ():
     assert fulou_candidates[22]==Fulou.deserialize("minggang,m9,m9+m9+m9,null")
     assert fulou_candidates[23]==Fulou.deserialize("peng,m1,m1+m1,null")
     assert fulou_candidates[24]==Fulou.deserialize("peng,m9,m9+m9,null")
+
 

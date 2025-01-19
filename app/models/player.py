@@ -13,10 +13,21 @@ class Player(BaseModel):
     menfeng: Feng = Field(default=None)
     user: Optional[User] = Field(default=None)
     he: He = Field(default=He())
-    # is_lizhi: bool = Field(default=False)
-    # is_yifa:bool=Field(default=False)
     socket: Optional[WebSocket]=Field(default=None)
     last_recieved_message:Optional[GameMessage]=Field(default=None)
     last_sent_message:Optional[GameMessage]=Field(default=None)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def is_recieved_message(self):
+        return self.last_recieved_message is not None and (
+            self.last_recieved_message.game.action == "kaiju"
+            or (
+                self.last_sent_message is not None
+                and self.last_recieved_message.game.action
+                == self.last_sent_message.game.action
+            )
+        )
+        
+    def is_bot(self):
+        return self.socket is None
