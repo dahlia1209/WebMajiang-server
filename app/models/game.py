@@ -29,7 +29,7 @@ class Game(BaseModel):
     wangpai: Wangpai = Field(default=Wangpai())
     rule: Rule = Field(default=Rule())
     score: Score = Field(default=Score())
-    teban: Feng = Field(default="東")
+    zuoci: Feng = Field(default="東")
 
     def qipai(self):
         # 数牌（赤ドラ以外）生成
@@ -129,6 +129,8 @@ class Game(BaseModel):
         )
         self.players[num].shoupai.do_lizhi(dapai, dapai_idx, is_double_lizhi)
         self.players[num].he.pais.append(dapai)
+        self.players[num].he.lizhi_num=len(self.players[num].he.pais)-1
+        
         hule_candidates = self.players[num].shoupai.hule_candidates
         fulou_candidates = self.players[num].shoupai.fulou_candidates
 
@@ -138,17 +140,18 @@ class Game(BaseModel):
         hulepai: Pai,
         option: List[Literal["qianggang", "lingshang"]] = [],
     ):
+        if not self._is_zimo_hule(num) and not self.is_tingpaiqing(num):
+            raise ValueError("フリテンのロン和了はできません")
         best_hupai = Hupai()
         hulepats = self.players[num].shoupai.get_hulepattern(hulepai)
         for pat in hulepats:
-
             result_hupai = self._calculate_fanshu(num, pat, option)
             if result_hupai.fanshu > best_hupai.fanshu:
                 best_hupai = result_hupai
         best_hupai=self._calculate_hu(num, best_hupai)
         defen=self._calcualate_defen(num,best_hupai)
         self.score.defen=[x + y for x, y in zip(self.score.defen, defen)]
-        print("hule,best_hupai,num",best_hupai,num)
+        
         return best_hupai
         
     def pingju(self):
@@ -167,7 +170,10 @@ class Game(BaseModel):
         pingju_defen= [true_value if x else false_value for x in tingpai_ary]
         self.score.defen=[x + y for x, y in zip(self.score.defen, pingju_defen)]
         return pingju_defen
-        
+    
+    
+    def _is_zimo_hule(self,hule_player:Literal[0, 1, 2, 3]):
+        return self.zuoci == self.players[hule_player].menfeng
         
     def _calcualate_defen(self,num: Literal[0, 1, 2, 3],hupai:Hupai):
         if hupai.fanshu==0:
@@ -211,12 +217,12 @@ class Game(BaseModel):
             return hule_defen
         
         def get_hule_type():
-            hule_type= "zimo" if self.teban==self.players[num].menfeng else "rong"
+            hule_type= "zimo" if self.zuoci==self.players[num].menfeng else "rong"
             return hule_type
         
         def get_baojia_idx():
             for i in range(4):
-                if self.teban==self.players[i].menfeng:
+                if self.zuoci==self.players[i].menfeng:
                     return i
             raise ValueError(f"放銃者が存在しません")
         
@@ -268,7 +274,7 @@ class Game(BaseModel):
             for pais in hupai.pat.get_pai_list()[:-1]
             + (
                 [hupai.pat.get_pai_list()[-1]]
-                if self.teban == self.players[num].menfeng
+                if self._is_zimo_hule(num)
                 else []
             )  # 自摸アガリであれば暗刻の可能性あり
             if len(pais) == 3 and pais[0] == pais[1]
@@ -282,7 +288,7 @@ class Game(BaseModel):
             ]
             + (
                 [hupai.pat.get_pai_list()[-1]]
-                if self.teban != self.players[num].menfeng
+                if self.zuoci != self.players[num].menfeng
                 else []
             )  # ロンアガリであれば明刻の可能性あり
             if len(pais) == 3 and pais[0] == pais[1]
@@ -354,7 +360,7 @@ class Game(BaseModel):
             hu += 2
         
         #自摸orロン
-        if self.teban == self.players[num].menfeng:
+        if self._is_zimo_hule(num):
             hu += 2
         else:
             #メンゼンロン
@@ -396,7 +402,7 @@ class Game(BaseModel):
         # ツモ：zimo
         if (
             all(f.type == "angang" for f in self.players[num].shoupai.fulou)
-            and self.teban == self.players[num].menfeng
+            and self._is_zimo_hule(num)
         ):
             hupai.fanshu += 1
             hupai.name.append("門前清自摸和")
@@ -512,12 +518,12 @@ class Game(BaseModel):
             hupai.name.append(f"一盃口")
 
         # 海底撈月
-        if len(self.shan.pais) == 0 and self.teban == self.players[num].menfeng:
+        if len(self.shan.pais) == 0 and self._is_zimo_hule(num):
             hupai.fanshu += 1
             hupai.name.append(f"海底撈月")
 
         # 河底撈魚
-        if len(self.shan.pais) == 0 and self.teban != self.players[num].menfeng:
+        if len(self.shan.pais) == 0 and self.zuoci != self.players[num].menfeng:
             hupai.fanshu += 1
             hupai.name.append(f"河底撈魚")
 
@@ -633,7 +639,7 @@ class Game(BaseModel):
             for pais in pat.get_pai_list()[:-1]
             + (
                 [pat.get_pai_list()[-1]]
-                if self.teban == self.players[num].menfeng
+                if self._is_zimo_hule(num)
                 else []
             )  # 自摸アガリであれば暗刻の可能性あり
             if len(pais) == 3 and pais[0] == pais[1]
@@ -822,7 +828,7 @@ class Game(BaseModel):
                 for i in range(4)
             )
             and self.players[num].menfeng == "東"
-            and self.teban == "東"
+            and self.zuoci == "東"
         ):
             hupai.fanshu += 100
             hupai.name.append(f"天和")
@@ -832,7 +838,7 @@ class Game(BaseModel):
             all(len(self.players[i].shoupai.fulou) == 0 for i in range(4))
             and len(self.players[num].he.pais) == 0
             and self.players[num].menfeng != "東"
-            and self.players[num].menfeng == self.teban
+            and self.players[num].menfeng == self.zuoci
         ):
             hupai.fanshu += 100
             hupai.name.append(f"地和")
@@ -940,7 +946,7 @@ class Game(BaseModel):
         return hupai
 
     def get_turn(self, num: Literal[0, 1, 2, 3]) -> Position:
-        if self.players[num].menfeng == self.teban:
+        if self.players[num].menfeng == self.zuoci:
             return "main"
 
         position_map = {
@@ -950,18 +956,18 @@ class Game(BaseModel):
             "北": {"東": "xiajia", "南": "duimian", "西": "shangjia"},
         }
 
-        return position_map[self.players[num].menfeng][self.teban]
+        return position_map[self.players[num].menfeng][self.zuoci]
 
-    def next_teban(self):
-        if self.teban == "東":
-            self.teban = "南"
-        elif self.teban == "南":
-            self.teban = "西"
-        elif self.teban == "西":
-            self.teban = "北"
+    def next_zuoci(self):
+        if self.zuoci == "東":
+            self.zuoci = "南"
+        elif self.zuoci == "南":
+            self.zuoci = "西"
+        elif self.zuoci == "西":
+            self.zuoci = "北"
         else:
-            self.teban = "東"
-        return self.teban
+            self.zuoci = "東"
+        return self.zuoci
     
     def get_next_feng(self,feng:Feng):
         feng_list:List[Feng]=["東", "北", "西", "南"]
@@ -983,7 +989,7 @@ class Game(BaseModel):
         for i in range(4):
             score.menfeng[i]=self.get_next_feng(self.score.menfeng[i])
         teban="東"
-        return Game(players=players,shan=shan,wangpai=wangpai,rule=rule,score=score,teban=teban)
+        return Game(players=players,shan=shan,wangpai=wangpai,rule=rule,score=score,zuoci=teban)
     
     def get_player(self,websocket:WebSocket):
         player:Optional[Player]=None
@@ -995,3 +1001,49 @@ class Game(BaseModel):
             raise ValueError("指定したプレイヤーは存在しません")
         
         return player
+    
+    def _get_player_order(self):
+        return [next(i for i,p in enumerate(self.players) if p.menfeng==f) for f in ["東", "南", "西", "北"]]
+    
+    def _get_all_he_pai(self,player_id: Literal[0, 1, 2, 3],skip:int=0):
+        filtered_pai:List[str]=[]
+        all_he_pai=[ (i,j,p.serialize()[:2]) for i in self._get_player_order() for j,p in enumerate(self.players[i].he.pais)]
+        filtered_pai = [z for x,y,z in sorted(
+            filter(lambda x: x[1] > skip or (x[1] == skip and x[0] >= player_id), all_he_pai),
+            key=lambda y: (y[1], y[0])
+        )]
+        return filtered_pai
+    
+    def is_tingpaiqing(self, num: Literal[0, 1, 2, 3]):
+        is_tingpaiqing=True
+        hule_pai=self.players[num].shoupai.get_serialized_hule_pai()
+        if hule_pai is None:
+            return False
+        
+        #自家捨て牌にアガリ牌が存在するかチェック
+        main_he_pai=[h[0:2] for h in self.players[num].he.get_serialized_he_pai().split("+")] if self.players[num].he.get_serialized_he_pai() else []
+        for hule in hule_pai.split("+"):
+            if hule[:2] in main_he_pai:
+                is_tingpaiqing=False
+                break
+        
+        #他家捨て牌にアガリ牌が存在するかチェック
+        lizhi_num=self.players[num].he.lizhi_num
+        if lizhi_num ==-1:
+            lizhi_num=len(self.players[num].he.pais)-1
+        all_he_pai=self._get_all_he_pai(num,lizhi_num)
+        for hule in hule_pai.split("+"):
+            if hule[:2] in all_he_pai:
+                is_tingpaiqing=False
+                break
+        
+        return is_tingpaiqing
+    
+    def get_serialized_hule_pai(self, num: Literal[0, 1, 2, 3],check_tingpaiqing:bool=False):
+        hule_pai=self.players[num].shoupai.get_serialized_hule_pai()
+        if not hule_pai:
+            return None
+        if  check_tingpaiqing and not self.is_tingpaiqing(num):
+            hule_pai+="+b0"
+        return hule_pai
+        

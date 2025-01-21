@@ -86,7 +86,7 @@ def test_data():
 
 def test_game_init():
     game = Game()
-    assert game.teban == "東"
+    assert game.zuoci == "東"
 
 
 def test_qipai(): 
@@ -171,14 +171,14 @@ def get_turn():
         for mf in feng:
             game.players[i].menfeng=mf[i]
             for te in feng:
-                game.teban=te
+                game.zuoci=te
                 assert game.get_turn(i)==["main","xiajia","duimian","shangjia"][feng.index(mf)-feng.index(te)]
 
 def test_calculate_fanshu():
     #国士無双
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -195,7 +195,7 @@ def test_calculate_fanshu():
     #七対子
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -213,7 +213,7 @@ def test_calculate_fanshu():
     #立直
     game = Game()
     game.score.zhuangfeng="東"
-    game.teban="南"
+    game.zuoci="南"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="東"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -229,7 +229,7 @@ def test_calculate_fanshu():
     #ダブル立直
     game = Game()
     game.score.zhuangfeng="東"
-    game.teban="南"
+    game.zuoci="南"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="東"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -245,7 +245,7 @@ def test_calculate_fanshu():
     #一発
     game = Game()
     game.score.zhuangfeng="東"
-    game.teban="南"
+    game.zuoci="南"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="東"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -263,7 +263,7 @@ def test_calculate_fanshu():
     #ツモ
     game = Game()
     game.score.zhuangfeng="東"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="東"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -278,7 +278,7 @@ def test_calculate_fanshu():
     #風牌
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="西"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -293,7 +293,7 @@ def test_calculate_fanshu():
     #場牌
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="西"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -308,7 +308,7 @@ def test_calculate_fanshu():
     #役牌
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -322,7 +322,7 @@ def test_calculate_fanshu():
     
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -336,7 +336,7 @@ def test_calculate_fanshu():
     
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -351,7 +351,7 @@ def test_calculate_fanshu():
     #タンヤオ
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -367,7 +367,7 @@ def test_calculate_fanshu():
     #平和
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -383,7 +383,7 @@ def test_calculate_fanshu():
     #一盃口
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -399,7 +399,7 @@ def test_calculate_fanshu():
     # 海底撈月
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in []]
     game.players[0].menfeng="東"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -415,7 +415,7 @@ def test_calculate_fanshu():
     # 河底撈魚
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in []]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -431,7 +431,7 @@ def test_calculate_fanshu():
     # 嶺上開花
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="東"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -447,7 +447,7 @@ def test_calculate_fanshu():
     # 槍槓
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -463,7 +463,7 @@ def test_calculate_fanshu():
     #三色同順
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -479,7 +479,7 @@ def test_calculate_fanshu():
     #三色同順 （食い下がり）
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -495,7 +495,7 @@ def test_calculate_fanshu():
     #一気通貫
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -511,7 +511,7 @@ def test_calculate_fanshu():
     #三色同順 （食い下がり）
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -527,7 +527,7 @@ def test_calculate_fanshu():
     #対々和
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -543,7 +543,7 @@ def test_calculate_fanshu():
     #ホンイツ
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -559,7 +559,7 @@ def test_calculate_fanshu():
     #ホンイツ（食い下がり）
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -575,7 +575,7 @@ def test_calculate_fanshu():
     #三暗刻
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="南"
+    game.zuoci="南"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -591,7 +591,7 @@ def test_calculate_fanshu():
     #三色同刻
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -607,7 +607,7 @@ def test_calculate_fanshu():
     #混老頭
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -624,7 +624,7 @@ def test_calculate_fanshu():
     #チャンタ
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -640,7 +640,7 @@ def test_calculate_fanshu():
     #チャンタ(食い下がり)
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -656,7 +656,7 @@ def test_calculate_fanshu():
     #小三元
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -674,7 +674,7 @@ def test_calculate_fanshu():
     #三槓子
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -690,7 +690,7 @@ def test_calculate_fanshu():
     #純チャン
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -706,7 +706,7 @@ def test_calculate_fanshu():
     #純チャン(食い下がり)
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -722,7 +722,7 @@ def test_calculate_fanshu():
     #二盃口
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -738,7 +738,7 @@ def test_calculate_fanshu():
     #清一色
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -754,7 +754,7 @@ def test_calculate_fanshu():
     #清一色（食い下がり）
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -770,7 +770,7 @@ def test_calculate_fanshu():
     #天和
     game = Game()
     game.score.zhuangfeng="東"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="東"
     game.players[0].he.pais=[Pai.deserialize(s) for s in []]
@@ -787,7 +787,7 @@ def test_calculate_fanshu():
     #地和
     game = Game()
     game.score.zhuangfeng="東"
-    game.teban="南"
+    game.zuoci="南"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in []]
@@ -804,7 +804,7 @@ def test_calculate_fanshu():
     #緑一色
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -822,7 +822,7 @@ def test_calculate_fanshu():
     #大三元
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -841,7 +841,7 @@ def test_calculate_fanshu():
     #小四喜
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="西"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -859,7 +859,7 @@ def test_calculate_fanshu():
     #緑一色
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -881,7 +881,7 @@ def test_calculate_fanshu():
     #九蓮宝燈
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -898,7 +898,7 @@ def test_calculate_fanshu():
     #四暗刻
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="南"
+    game.zuoci="南"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -916,7 +916,7 @@ def test_calculate_fanshu():
     #清老頭
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -933,7 +933,7 @@ def test_calculate_fanshu():
     #四槓子
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -950,7 +950,7 @@ def test_calculate_fanshu():
     #大四喜
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="西"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -970,7 +970,7 @@ def test_calculate_fanshu():
 def test_calculate_hu(test_data):
     #平和・自摸
     game = Game()
-    game.teban="東"
+    game.zuoci="東"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -983,7 +983,7 @@ def test_calculate_hu(test_data):
     
     #七対子
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -996,7 +996,7 @@ def test_calculate_hu(test_data):
     
     #国士
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -1010,7 +1010,7 @@ def test_calculate_hu(test_data):
     #暗刻含み
     ##中帳牌 ロン
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -1023,7 +1023,7 @@ def test_calculate_hu(test_data):
     
     ##ヤオチュー牌 ロン
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -1036,7 +1036,7 @@ def test_calculate_hu(test_data):
     
     #両面ロン
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -1049,7 +1049,7 @@ def test_calculate_hu(test_data):
     
     #カンチャンロン
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -1062,7 +1062,7 @@ def test_calculate_hu(test_data):
     
     #ペンチャンロン
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -1075,7 +1075,7 @@ def test_calculate_hu(test_data):
     
     #単騎ロン
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -1088,7 +1088,7 @@ def test_calculate_hu(test_data):
     
     #シャンポンロン
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -1101,7 +1101,7 @@ def test_calculate_hu(test_data):
     
     #立直
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
@@ -1114,7 +1114,7 @@ def test_calculate_hu(test_data):
     
     #4順子+役無雀頭+両面+ロン
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[]
@@ -1129,7 +1129,7 @@ def test_calculate_hu(test_data):
     
     #4順子+役無雀頭+両面+ツモ
     game = Game()
-    game.teban="東"
+    game.zuoci="東"
     game.players[0].menfeng="東"
     game.score.zhuangfeng="東"
     game.players[0].shoupai.fulou=[]
@@ -1143,13 +1143,13 @@ def test_calculate_hu(test_data):
 
 def test_calcualate_defen():
     game = Game()
-    game.teban="南"
+    game.zuoci="南"
     for i,f in enumerate(["東","南","西","北"]):
         game.players[i].menfeng=f
     
     for num in range(4):
         for teban in ["東","南","西","北"]:
-            game.teban=teban
+            game.zuoci=teban
             for fanshu in range(1,14):
                 for hu in range(20,120,10):
                     input_hupai=Hupai(fanshu=fanshu,hu=hu)
@@ -1197,7 +1197,7 @@ def test_lizhi():
     #立直
     game=Game()
     game.score.zhuangfeng="東"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="東"
     game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2"]]
@@ -1212,7 +1212,7 @@ def test_lizhi():
     #ダブル立直
     game=Game()
     game.score.zhuangfeng="南"
-    game.teban="南"
+    game.zuoci="南"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     game.players[0].menfeng="南"
     game.players[0].he.pais=[Pai.deserialize(s) for s in []]
@@ -1228,7 +1228,7 @@ def test_hule():
     #平和ロンアガリ
     game = Game()
     game.score.zhuangfeng="南"
-    game.teban="東"
+    game.zuoci="東"
     game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
     for p, mf in zip(game.players, ["南","西","北","東"]):
         p.menfeng = mf
@@ -1243,9 +1243,140 @@ def test_hule():
     assert hupai.fanshu==1
     assert hupai.hu==30
     assert hupai.name==["平和"]
-                                    
-
-
+    
+    #フリテンアガリ
+    game = Game()
+    game.score.zhuangfeng="南"
+    game.zuoci="東"
+    game.shan.pais=[Pai.deserialize(s) for s in ["z1"]]
+    for p, mf in zip(game.players, ["南","西","北","東"]):
+        p.menfeng = mf
+    game.players[0].he.pais=[Pai.deserialize(s) for s in ["z2","p8"]]
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.fulou=[Fulou.deserialize(s) for s in []]
+    hulepai=Pai.deserialize("p8")
+    game.players[0].shoupai.lizhi_flag=False
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[hulepai])]
+    with pytest.raises(ValueError):
+        assert game.hule(0,hulepai)
+     
+def test_is_tingpaiqing():
+    #捨て牌なし
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["東", "南", "西", "北"]):
+        game.players[player_id].menfeng=f
+    assert game.is_tingpaiqing
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f"
+    
+    #捨て牌あり、立直なし、フリテンなし
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["東", "南", "西", "北"]):
+        game.players[player_id].menfeng=f
+    for player_id,s in enumerate(["m","p","s","z"]):
+        for n in range(1,8):
+            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    assert game.is_tingpaiqing(0)
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f"
+    
+    #捨て牌あり、立直なし、フリテンあり（自家捨て牌）
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["東", "南", "西", "北"]):
+        game.players[player_id].menfeng=f
+    for player_id,s in enumerate(["p","m","s","z"]):
+        for n in range(1,6):
+            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    assert not game.is_tingpaiqing(0)
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
+    
+    #捨て牌あり、立直なし、フリテンあり(他家捨て牌)
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["東", "南", "西", "北"]):
+        game.players[player_id].menfeng=f
+    for player_id,s in enumerate(["m","p","s","z"]):
+        for n in range(1,6):
+            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    assert not game.is_tingpaiqing(0)
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
     
     
+    #捨て牌あり、立直あり、フリテンなし
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    game.players[0].shoupai.lizhi_flag=1
+    game.players[0].he.lizhi_num=5
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["東", "南", "西", "北"]):
+        game.players[player_id].menfeng=f
+    for player_id,s in enumerate(["m","p","s","z"]):
+        for n in range(1,8):
+            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    assert game.is_tingpaiqing(0)
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f"
+    
+    #捨て牌あり、立直あり、フリテンあり（自家捨て牌）
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    game.players[0].shoupai.lizhi_flag=1
+    game.players[0].he.lizhi_num=5
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["東", "南", "西", "北"]):
+        game.players[player_id].menfeng=f
+    for player_id,s in enumerate(["p","m","s","z"]):
+        for n in range(1,8):
+            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    assert not game.is_tingpaiqing(0)
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
+    
+    #捨て牌あり、立直あり、フリテンあり(他家捨て牌)
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    game.players[0].shoupai.lizhi_flag=1
+    game.players[0].he.lizhi_num=0
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["東", "南", "西", "北"]):
+        game.players[player_id].menfeng=f
+    for player_id,s in enumerate(["m","p","s","z"]):
+        for n in range(1,8):
+            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    assert not game.is_tingpaiqing(0)
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
+    
+    #打牌順序考慮
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["北", "東", "南", "西"]):
+        game.players[player_id].menfeng=f
+    for player_id,s in enumerate(["m","p","s","z"]):
+        for n in range(1,5):
+            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    assert game.is_tingpaiqing(0)
+    game.players[1].he.pais.append(Pai.deserialize(f"p5"))
+    assert not game.is_tingpaiqing(0)
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
+
     

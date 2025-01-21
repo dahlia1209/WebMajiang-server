@@ -221,7 +221,7 @@ def test_lizhi(client, handler):
                 res = websocket.receive_json()
                 recieved_game_msg=GameMessage(**res)
                 assert recieved_game_msg.game.action=="dapai"
-                assert recieved_game_msg.game.hule=="p2f+p5f"
+                assert recieved_game_msg.game.hule in ["p2f+p5f","p2f+p5f+b0"]
                 client_msg=GameMessage(game=GameState(action="dapai"))
                 websocket.send_json(client_msg.model_dump())
         

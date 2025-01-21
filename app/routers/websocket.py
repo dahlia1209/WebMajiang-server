@@ -29,10 +29,6 @@ from itertools import chain
 from threading import local,Lock
 
 router = APIRouter()
-# _con_mgr = ConnectionManager()
-
-# def get_connection_manager():
-#     return _con_mgr
 
 class WebSocketMessageHandler:
     _instance: Optional['WebSocketMessageHandler'] = None
@@ -182,11 +178,11 @@ class WebSocketMessageHandler:
                         zimopai="b0",
                     ),
                 )
-            if game.players[i].menfeng==game.teban:
+            if game.players[i].menfeng==game.zuoci:
                 zimopai=game.zimo(i)
                 zimo_msg.game.fulouCandidates=game.players[i].shoupai.get_serialized_fulou_candidates()
                 zimo_msg.game.lizhipai=game.players[i].shoupai.get_serialized_lizhi_pai()
-                zimo_msg.game.hule=game.players[i].shoupai.get_serialized_hule_pai()
+                zimo_msg.game.hule=game.get_serialized_hule_pai(i)
                 zimo_msg.game.zimopai=zimopai.serialize()
                 
             if game.players[i].socket:
@@ -230,10 +226,10 @@ class WebSocketMessageHandler:
                             dapai=",".join([last_zimo,"99"]),
                         ),
                     )
-                if game.players[i].menfeng==game.teban:
+                if game.players[i].menfeng==game.zuoci:
                     game.dapai(i,Pai.deserialize(last_zimo),99)
                 if game.players[i].socket:
-                    dapai_msg.game.hule=game.players[i].shoupai.get_serialized_hule_pai()
+                    dapai_msg.game.hule=game.get_serialized_hule_pai(i,True)
                     await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
                 game.players[i].last_sent_message=dapai_msg
         else:
@@ -247,11 +243,11 @@ class WebSocketMessageHandler:
                             dapai=",".join([dapai_str,str(dapai_idx)])
                         ),
                     )
-                if game.players[i].menfeng==game.teban:
+                if game.players[i].menfeng==game.zuoci:
                     game.dapai(i,Pai.deserialize(dapai_str),dapai_idx)
                     dapai_msg.game.fulouCandidates=game.players[i].shoupai.get_serialized_fulou_candidates()
                     dapai_msg.game.lizhipai=game.players[i].shoupai.get_serialized_lizhi_pai()
-                    dapai_msg.game.hule=game.players[i].shoupai.get_serialized_hule_pai()
+                    dapai_msg.game.hule=game.get_serialized_hule_pai(i,True)
                 if game.players[i].socket:
                     await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
                 game.players[i].last_sent_message=dapai_msg
@@ -340,7 +336,7 @@ class WebSocketMessageHandler:
                     ),
                 )
             
-            if game.players[i].menfeng==game.teban:
+            if game.players[i].menfeng==game.zuoci:
                 game.fulou(i,Fulou.deserialize(fulou_str))
                 
             if game.players[i].socket:
@@ -375,17 +371,18 @@ class WebSocketMessageHandler:
             if game.players[player].last_recieved_message is None or  game.players[player].last_recieved_message.game.hule is None:
                 raise ValueError("和了牌が存在しません")
             hulepai=Pai.deserialize(game.players[player].last_recieved_message.game.hule)
-            game.hule(player,hulepai)
-            game.teban=game.players[player].menfeng
+            hupai=game.hule(player,hulepai)
+            print("hupai,player",hupai,player)
+            game.zuoci=game.players[player].menfeng
             await self._send_hule(game=game)
         elif next_action=="fulou":
-            game.teban=game.players[player].menfeng
+            game.zuoci=game.players[player].menfeng
             await self._send_fulou(game=game)
         elif next_action=="dapai" or next_action=="lizhi" :
             if len(game.shan.pais)==0:
                 await self._send_pingju(game=game)
             else:
-                game.next_teban()
+                game.next_zuoci()
                 await self._send_zimo(game=game)
         else:
             raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
