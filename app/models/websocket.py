@@ -16,7 +16,6 @@ MessageType = Literal["message","game","score"]
 class GameState(BaseModel):
     action: Optional[PlayerAction] = Field(default=None)
     turn: Optional[Position] = Field(default=None)
-    # status: Optional[PlayerStatus] = Field(default=None)
     dapai: Optional[str] = Field(default=None)
     zimopai: Optional[str] = Field(default=None)
     fulouCandidates: Optional[str] = Field(default=None)
@@ -24,6 +23,7 @@ class GameState(BaseModel):
     fulou: Optional[str] = Field(default=None)
     qipai: Optional[str] = Field(default=None)
     hule: Optional[str] = Field(default=None)
+    baopai: Optional[str] = Field(default=None)
     
 class ScoreContent(BaseModel):
     zhuangfeng: Optional[Feng] = Field(default="東")

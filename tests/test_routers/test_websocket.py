@@ -12,6 +12,7 @@ from app.models.pai import Pai
 from app.managers.connection import ConnectionManager
 from app.models.game import Game,Hupai
 from app.models.player import Player
+from app.models.shoupai import Fulou
 import pytest
 
 # app = FastAPI()
@@ -241,4 +242,158 @@ def test_lizhi(client, handler):
         res = websocket.receive_json()
         recieved_game_msg=GameMessage(**res)
         assert recieved_game_msg.game.action=="qipai"
+        
+def test_gang(client, handler):
+    with client.websocket_connect("/ws") as websocket:
+        #開局、配牌
+        m=GameMessage(type="game",game=GameState(action="kaiju"))
+        websocket.send_json(m.model_dump())
+        res = websocket.receive_json()
+        score_msg=ScoreMessage(**res)
+        first_mengfeng=score_msg.score.menfeng
+        res = websocket.receive_json()
+        recieved_game_msg=GameMessage(**res)
+        m=GameMessage(type="game",game=GameState(action="qipai"))
+        websocket.send_json(m.model_dump())
+        
+        bingpai=[Pai.deserialize(s) for s in ["m1","m1","m1","m1","m2","m2","m2","p4","p5","p5","z7","z7","z7"]]
+        player_id,player=next((i,p) for i,p in enumerate(handler.games[0].players) if not  p.is_bot())
+        player.shoupai.bingpai=bingpai
+        player.shoupai._compute_xiangting()
+        bot_id,bot_player=next((i,p) for i,p in enumerate(handler.games[0].players) if  p.is_bot())
+        #1巡目暗槓・嶺上ツモ・ツモ切り
+        for i in range(4):
+            res=None
+            res = websocket.receive_json()
+            recieved_game_msg=GameMessage(**res)
+            if player_id ==i:
+                fulou_candidates=[Fulou.deserialize(s) for s in recieved_game_msg.game.fulouCandidates.split("|")]
+                assert fulou_candidates[0].serialize()=="angang,null,m1f+m1f+m1f+m1f,null"
+                client_msg=GameMessage(game=GameState(action="zimo",fulou=fulou_candidates[0].serialize(),turn="main"))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                assert recieved_game_msg.game.action=="fulou"
+                assert recieved_game_msg.game.fulou==fulou_candidates[0].serialize()
+                client_msg=GameMessage(game=GameState(action="fulou",turn="main",zimopai="b0"))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                assert recieved_game_msg.game.action=="zimo"
+                assert recieved_game_msg.game.zimopai is not None
+                assert recieved_game_msg.game.baopai is not None
+                assert handler.games[0].wangpai.baopai[1].serialize()==recieved_game_msg.game.baopai
+                client_msg=GameMessage(game=GameState(action="zimo",turn="main",dapai=f"{recieved_game_msg.game.zimopai},99"))
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                client_msg=GameMessage(game=GameState(action="dapai",turn="main"))
+                websocket.send_json(client_msg.model_dump())
+                assert len(player.shoupai.bingpai)==10
+            else:
+                client_msg=GameMessage(game=GameState(action="zimo"))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                client_msg=GameMessage(game=GameState(action="dapai"))
+                websocket.send_json(client_msg.model_dump())
+        #2巡目明槓・嶺上ツモ・ツモ切り
+        handler.games[0].shan.pais=[Pai.deserialize(s) for s in ["m2","m2","m2","m2"]]
+        for i in range(4):
+            res=None
+            res = websocket.receive_json()
+            recieved_game_msg=GameMessage(**res)
+            if bot_id ==i:
+                client_msg=GameMessage(game=GameState(action="zimo"))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                assert recieved_game_msg.game.dapai=='m2f,99'
+                fulou=f"minggang,m2,m2+m2+m2,duimian"
+                client_msg=GameMessage(game=GameState(action="dapai",turn="main",fulou=fulou))
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                assert recieved_game_msg.game.action=="fulou"
+                assert recieved_game_msg.game.fulou==fulou
+                client_msg=GameMessage(game=GameState(action="fulou",turn="main",zimopai="b0"))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                assert recieved_game_msg.game.action=="zimo"
+                assert recieved_game_msg.game.zimopai is not None
+                assert recieved_game_msg.game.baopai is not None
+                assert handler.games[0].wangpai.baopai[2].serialize()==recieved_game_msg.game.baopai
+                client_msg=GameMessage(game=GameState(action="zimo",turn="main",dapai=f"{recieved_game_msg.game.zimopai},99"))
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                client_msg=GameMessage(game=GameState(action="dapai",turn="main"))
+                websocket.send_json(client_msg.model_dump())
+                assert len(player.shoupai.bingpai)==7
+            else:
+                client_msg=GameMessage(game=GameState(action="zimo"))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                client_msg=GameMessage(game=GameState(action="dapai"))
+                websocket.send_json(client_msg.model_dump())
+        #3巡目ポン・加槓・嶺上ツモ・ツモ切り
+        handler.games[0].shan.pais=[Pai.deserialize(s) for s in ["z7","z7","z7","z7"]]
+        for i in range(4):
+            res=None
+            res = websocket.receive_json()
+            recieved_game_msg=GameMessage(**res)
+            if bot_id ==i:
+                client_msg=GameMessage(game=GameState(action="zimo"))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                assert recieved_game_msg.game.dapai=='z7f,99'
+                fulou=f"peng,z7,z7+z7,shangjia"
+                client_msg=GameMessage(game=GameState(action="dapai",turn="main",fulou=fulou))
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                assert recieved_game_msg.game.action=="fulou"
+                assert recieved_game_msg.game.fulou==fulou
+                fulou=f"jiagang,z7,z7+z7,shangjia"
+                client_msg=GameMessage(game=GameState(action="fulou",turn="main",fulou=fulou))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                assert recieved_game_msg.game.action=="fulou"
+                assert recieved_game_msg.game.fulou==fulou
+                client_msg=GameMessage(game=GameState(action="fulou",turn="main",zimopai="b0"))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                assert recieved_game_msg.game.action=="zimo"
+                assert recieved_game_msg.game.zimopai is not None
+                assert recieved_game_msg.game.baopai is not None
+                assert handler.games[0].wangpai.baopai[3].serialize()==recieved_game_msg.game.baopai
+                client_msg=GameMessage(game=GameState(action="zimo",turn="main",dapai=f"{recieved_game_msg.game.zimopai},99"))
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                client_msg=GameMessage(game=GameState(action="dapai",turn="main"))
+                websocket.send_json(client_msg.model_dump())
+                assert len(player.shoupai.bingpai)==4
+            else:
+                client_msg=GameMessage(game=GameState(action="zimo"))
+                print("client_game_msg",client_msg)
+                websocket.send_json(client_msg.model_dump())
+                res = websocket.receive_json()
+                recieved_game_msg=GameMessage(**res)
+                client_msg=GameMessage(game=GameState(action="dapai"))
+                websocket.send_json(client_msg.model_dump())
         

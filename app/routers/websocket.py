@@ -145,49 +145,41 @@ class WebSocketMessageHandler:
                    for i in range(4) if not game.players[i].is_bot()
                 )
         
-    async def _handle_kaiju(self, message: GameMessage) -> None:
-        """開局処理"""
-        new_game = self._create_game()
-        self._handle_callback(message)
-        if not self._is_callbacked():
-            return
-        
-        await self._send_kaiju(new_game)
     
-    async def _handle_pingju(self, message: GameMessage) -> None:
-        """流局処理"""
-        self._handle_callback(message)
-        game=self._get_game()
-        if not self._is_callbacked():
-            return
-        game.pingju()
-        if 1<=game.score.jushu+1<=8:
-            new_game = self._create_game()
-            await self._send_kaiju(new_game)
-        else:
-            await self._send_jieju(game)
 
-    async def _send_zimo(self, game: Game) -> None:
+    async def _send_zimo(self, game: Game,zimopai:Pai,baopai:Optional[Pai]=None) -> None:
         """ツモ牌送信"""
         for i in range(4):
+            fulouCandidates=None
+            lizhipai=None
+            hule=None
+            zimopai_str="b0"
+            baopai_str=None if not baopai else baopai.serialize()
+            if game.get_zuoci_player()[0]==i:
+                fulouCandidates=game.players[i].shoupai.get_serialized_fulou_candidates()
+                lizhipai=game.players[i].shoupai.get_serialized_lizhi_pai()
+                hule=game.get_serialized_hule_pai(i)
+                zimopai_str=zimopai.serialize()
+                
             zimo_msg = GameMessage(
                     type="game",
                     game=GameState(
                         action="zimo",
                         turn=game.get_turn(i),
-                        zimopai="b0",
+                        zimopai=zimopai_str,
+                        fulouCandidates=fulouCandidates,
+                        lizhipai=lizhipai,
+                        hule=hule,
+                        baopai=baopai_str,
                     ),
                 )
-            if game.players[i].menfeng==game.zuoci:
-                zimopai=game.zimo(i)
-                zimo_msg.game.fulouCandidates=game.players[i].shoupai.get_serialized_fulou_candidates()
-                zimo_msg.game.lizhipai=game.players[i].shoupai.get_serialized_lizhi_pai()
-                zimo_msg.game.hule=game.get_serialized_hule_pai(i)
-                zimo_msg.game.zimopai=zimopai.serialize()
                 
-            if game.players[i].socket:
+            if not game.players[i].is_bot():
                 await self.manager.send_personal_message(zimo_msg, game.players[i].socket)
             game.players[i].last_sent_message=zimo_msg
+    
+    async def _send_lingshangzimo(self, game: Game,zimopai:Pai,baopai:Pai) :
+        await self._send_zimo(game,zimopai,baopai)
     
     async def _send_jieju(self, game: Game) -> None:
         """終局送信"""
@@ -198,7 +190,7 @@ class WebSocketMessageHandler:
                         action="jieju",
                     ),
                 )
-            if game.players[i].socket:
+            if not game.players[i].is_bot():
                 await self.manager.send_personal_message(jieju_msg, game.players[i].socket)
             game.players[i].last_sent_message=jieju_msg
     
@@ -226,9 +218,9 @@ class WebSocketMessageHandler:
                             dapai=",".join([last_zimo,"99"]),
                         ),
                     )
-                if game.players[i].menfeng==game.zuoci:
+                if game.get_zuoci_player()[0]==i:
                     game.dapai(i,Pai.deserialize(last_zimo),99)
-                if game.players[i].socket:
+                if not game.players[i].is_bot():
                     dapai_msg.game.hule=game.get_serialized_hule_pai(i,True)
                     await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
                 game.players[i].last_sent_message=dapai_msg
@@ -243,12 +235,12 @@ class WebSocketMessageHandler:
                             dapai=",".join([dapai_str,str(dapai_idx)])
                         ),
                     )
-                if game.players[i].menfeng==game.zuoci:
+                if game.get_zuoci_player()[0]==i:
                     game.dapai(i,Pai.deserialize(dapai_str),dapai_idx)
                     dapai_msg.game.fulouCandidates=game.players[i].shoupai.get_serialized_fulou_candidates()
                     dapai_msg.game.lizhipai=game.players[i].shoupai.get_serialized_lizhi_pai()
                     dapai_msg.game.hule=game.get_serialized_hule_pai(i,True)
-                if game.players[i].socket:
+                if not game.players[i].is_bot():
                     await self.manager.send_personal_message(dapai_msg, game.players[i].socket)
                 game.players[i].last_sent_message=dapai_msg
     
@@ -266,7 +258,7 @@ class WebSocketMessageHandler:
                     dapai=",".join([lizhipai_str,str(lizhipai_idx)])
                 ),
             )
-            if game.players[i].socket:
+            if not game.players[i].is_bot():
                 await self.manager.send_personal_message(lizhipai_msg, game.players[i].socket)
             game.players[i].last_sent_message=lizhipai_msg
     
@@ -279,7 +271,7 @@ class WebSocketMessageHandler:
                         action="pingju",
                     ),
                 )
-            if game.players[i].socket:
+            if not game.players[i].is_bot():
                 await self.manager.send_personal_message(pingju_msg, game.players[i].socket)
             game.players[i].last_sent_message=pingju_msg
             
@@ -294,7 +286,7 @@ class WebSocketMessageHandler:
                         
                     ),
                 )
-            if game.players[i].socket:
+            if not game.players[i].is_bot():
                 await self.manager.send_personal_message(hule_msg, game.players[i].socket)
             game.players[i].last_sent_message=hule_msg
             
@@ -314,7 +306,7 @@ class WebSocketMessageHandler:
             qipai_msg = GameMessage(type="game", game=GameState(action="qipai",qipai="+".join(
                 sorted([p.serialize() for p in game.players[i].shoupai.bingpai])
             )))
-            if game.players[i].socket:
+            if not game.players[i].is_bot():
                 await self.manager.send_personal_message(
                     score_msg, game.players[i].socket
                 )
@@ -335,17 +327,70 @@ class WebSocketMessageHandler:
                         fulou=fulou_str
                     ),
                 )
-            
-            if game.players[i].menfeng==game.zuoci:
-                game.fulou(i,Fulou.deserialize(fulou_str))
                 
-            if game.players[i].socket:
+            if not game.players[i].is_bot():
                 await self.manager.send_personal_message(fulou_msg, game.players[i].socket)
             game.players[i].last_sent_message=fulou_msg
-            
+    
+    
+    async def _handle_kaiju(self, message: GameMessage) -> None:
+        """開局処理"""
+        #処理サブ関数
+        async def process_kaiju():
+           await self._send_kaiju(new_game)
+        
+        #メイン処理
+        new_game = self._create_game()
+        self._handle_callback(message)
+        
+        if not self._is_callbacked():
+            return
+        
+        next_action,player=self._get_next_action(new_game)
+        processes = {
+            "kaiju": process_kaiju,
+        }
+        process=processes.get(next_action)
+        if not process:
+            raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+        await process()
+    
+    async def _handle_pingju(self, message: GameMessage) -> None:
+        """流局処理"""
+        #処理サブ関数
+        async def process_pingju():
+            game.pingju()
+            if 1<=game.score.jushu+1<=8:
+                new_game = self._create_game()
+                await self._send_kaiju(new_game)
+            else:
+                await self._send_jieju(game) 
+        
+        #メイン処理
+        self._handle_callback(message)
+        game=self._get_game()
+        
+        if not self._is_callbacked():
+            return
+        
+        next_action,player=self._get_next_action(game)
+        processes = {
+            "pingju": process_pingju,
+        }
+        process=processes.get(next_action)
+        if not process:
+            raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+        await process()
+               
     
     async def _handle_qipai(self, message: GameMessage) -> None:
         """配牌処理"""
+        #処理サブ関数
+        async def process_qipai():
+            zimopai=game.zimo(game.get_zuoci_player()[0])
+            await self._send_zimo(game,zimopai)
+        
+        #メイン処理
         self._handle_callback(message)
         game=self._get_game()
         
@@ -353,21 +398,18 @@ class WebSocketMessageHandler:
             return
         
         next_action,player=self._get_next_action(game)
-        if next_action=="qipai":
-            await self._send_zimo(game=game)
-        else:
+        processes = {
+            "qipai": process_qipai,
+        }
+        process=processes.get(next_action)
+        if not process:
             raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+        await process()
             
     async def _handle_dapai(self, message: GameMessage) -> None:
         """打牌後のリアクションのハンドリング"""
-        self._handle_callback(message)
-        game=self._get_game()
-        
-        if not self._is_callbacked():
-            return
-        
-        next_action,player=self._get_next_action(game)
-        if next_action=="hule":
+        #処理サブ関数
+        async def process_hule():
             if game.players[player].last_recieved_message is None or  game.players[player].last_recieved_message.game.hule is None:
                 raise ValueError("和了牌が存在しません")
             hulepai=Pai.deserialize(game.players[player].last_recieved_message.game.hule)
@@ -375,17 +417,35 @@ class WebSocketMessageHandler:
             print("hupai,player",hupai,player)
             game.zuoci=game.players[player].menfeng
             await self._send_hule(game=game)
-        elif next_action=="fulou":
+        async def process_fulou():
             game.zuoci=game.players[player].menfeng
+            game.fulou(player,Fulou.deserialize(game.get_last_recieved_fulou()))
             await self._send_fulou(game=game)
-        elif next_action=="dapai" or next_action=="lizhi" :
+        async def process_dapai():
             if len(game.shan.pais)==0:
                 await self._send_pingju(game=game)
             else:
                 game.next_zuoci()
-                await self._send_zimo(game=game)
-        else:
+                zimopai=game.zimo(game.get_zuoci_player()[0])
+                await self._send_zimo(game,zimopai)
+        
+        #メイン処理
+        self._handle_callback(message)
+        game=self._get_game()
+        
+        if not self._is_callbacked():
+            return
+        next_action,player=self._get_next_action(game)
+        processes = {
+            "hule": process_hule,
+            "fulou": process_fulou,
+            "dapai": process_dapai,
+            "lizhi": process_dapai,
+        }
+        process=processes.get(next_action)
+        if not process:
             raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+        await process()
     
     async def _handle_lizhi(self, message: GameMessage) -> None:
         """立直宣言後のリアクションのハンドリング"""
@@ -394,69 +454,102 @@ class WebSocketMessageHandler:
     
     async def _handle_zimo(self, message: GameMessage) -> None:
         """自摸後のリアクションのハンドリング"""
-        self._handle_callback(message)
-        game=self._get_game()
-        
-        if not self._is_callbacked():
-            return
-        
-        next_action,player=self._get_next_action(game)
-        if next_action=="hule":
+        #処理サブ関数
+        async def process_hule():
             if game.players[player].last_recieved_message is None or  game.players[player].last_recieved_message.game.hule is None:
                 raise ValueError("和了牌が存在しません")
             hulepai=Pai.deserialize(game.players[player].last_recieved_message.game.hule)
             game.hule(player,hulepai)
             await self._send_hule(game=game)
-        elif next_action=="lizhi":
+        async def process_lizhi():
             if   game.players[player].last_recieved_message is None or  game.players[player].last_recieved_message.game.lizhipai is None:
                 raise ValueError("和了牌が存在しません")
             dapai_str,dapai_idx=self._validate_dapai(game.players[player].last_recieved_message.game.lizhipai)
             game.lizhi(player,Pai.deserialize(dapai_str),dapai_idx)
             await self._send_lizhi(game=game)
-        elif next_action=="fulou":
-            pass
-        elif next_action=="dapai":
+        async def process_fulou():
+            game.fulou(player,Fulou.deserialize(game.get_last_recieved_fulou()))
+            await self._send_fulou(game=game)
+        async def process_dapai():
             await self._send_dapai(game=game)
-        elif next_action=="zimo":
+        async def process_zimo():
             await self._send_dapai(game=game)
-        else:
+        
+        #メイン処理
+        self._handle_callback(message)
+        game=self._get_game()
+        
+        if not self._is_callbacked():
+            return
+        next_action,player=self._get_next_action(game)
+        processes = {
+            "hule": process_hule,
+            "fulou": process_fulou,
+            "dapai": process_dapai,
+            "lizhi": process_lizhi,
+            "zimo": process_zimo,
+        }
+        process=processes.get(next_action)
+        if not process:
             raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+        await process()
     
     async def _handle_fulou(self, message: GameMessage) -> None:
         """副露処理"""
+        #処理サブ関数
+        async def process_hule():
+            pass
+        async def process_fulou():
+            game.fulou(player,Fulou.deserialize(game.get_last_recieved_fulou()))
+            await self._send_fulou(game=game)
+        async def process_dapai():
+            await self._send_dapai(game=game)
+        async def process_zimo():
+            zimopai,gangbaopai=game.lingshangzimo(game.get_zuoci_player()[0])
+            await self._send_lingshangzimo(game,zimopai,gangbaopai)
+        
+        #メイン処理
         self._handle_callback(message)
         game=self._get_game()
         
         if not self._is_callbacked():
             return
-        
         next_action,player=self._get_next_action(game)
-        if next_action=="hule":
-            pass
-        elif next_action=="fulou":
-            pass
-        elif next_action=="dapai":
-            await self._send_dapai(game=game)
-        else:
+        processes = {
+            "hule": process_hule,
+            "fulou": process_fulou,
+            "dapai": process_dapai,
+            "zimo": process_zimo,
+        }
+        process=processes.get(next_action)
+        if not process:
             raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+        await process()
         
     async def _handle_hule(self, message: GameMessage) -> None:
         """和了処理"""
-        self._handle_callback(message)
-        game=self._get_game()
-        
-        if not self._is_callbacked():
-            return
-        
-        next_action,player=self._get_next_action(game)
-        if next_action=="hule":
+        #処理サブ関数
+        async def process_hule():
             if 1<=game.score.jushu+1<=8:
                 new_game = self._create_game()
                 await self._send_kaiju(new_game)
             else:
                 await self._send_jieju(game)
-        else:
+        
+        #メイン処理
+        self._handle_callback(message)
+        game=self._get_game()
+        
+        if not self._is_callbacked():
+            return
+        next_action,player=self._get_next_action(game)
+        processes = {
+            "hule": process_hule,
+        }
+        process=processes.get(next_action)
+        if not process:
             raise ValueError(f"次のアクションが不正です,next_action:{next_action}")
+        await process()
         
     def _get_next_action(self,game:Game):
         next_action:Union[PlayerAction,None]
@@ -468,6 +561,7 @@ class WebSocketMessageHandler:
                 ((i,"lizhi") for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.lizhipai),
                 ((i,"fulou") for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.fulou),
                 ((i,"dapai") for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.dapai),
+                ((i,"zimo") for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.zimopai),
                 ((i,p.last_recieved_message.game.action) for i,p in enumerate(game.players) if p.last_recieved_message and p.last_recieved_message.game.action is not None)
                 ),
             (-1,None))

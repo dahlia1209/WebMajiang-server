@@ -18,10 +18,9 @@ class Wangpai(BaseModel):
     def flip_baopai(self):
         if self.flipped_baopai[-1]:
             raise ValueError("カンドラめくりができません")
-        for i, is_flipped in enumerate(self.flipped_baopai):
-            if is_flipped == False:
-                self.flipped_baopai[i] = True
-                return
+        baopai_idx=next(i for i,is_flipped in enumerate(self.flipped_baopai) if not is_flipped )
+        self.flipped_baopai[baopai_idx] = True
+        return self.baopai[baopai_idx]
 
     @field_validator("lingshangpai")
     @classmethod

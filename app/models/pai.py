@@ -35,8 +35,9 @@ class Pai(BaseModel):
             return self.num == other.num and self.suit == other.suit and self.is_red == other.is_red 
         return False
     
-    def serialize(self):
-        return str(self.suit)+str(self.num)+('t' if self.is_red else 'f')
+    def serialize(self,str_length:int=3):
+        paistr=str(self.suit)+str(self.num)+('t' if self.is_red else 'f')
+        return paistr[:str_length]
     
     @classmethod
     def get_yaojiupai(self):

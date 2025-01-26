@@ -1379,4 +1379,61 @@ def test_is_tingpaiqing():
     assert not game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
 
+def test_fulou():
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m1","m1","m1","m2","p3","p3","p3","p5","p5","p5","p6","p7"]]
+    fulou_candidates=[Fulou.deserialize(f) for f in ["peng,p5,p5+p5,null","chi,p8,p6+p7,null","minggang,p3,p3+p3+p3,null","angang,null,m1+m1+m1+m1,null","jiagang,p5,p5+p5+p5,null"]]
+    game.players[0].shoupai.fulou_candidates=fulou_candidates
+    peng=game.players[0].shoupai.fulou_candidates[0].model_copy(update={"position":"duimian"})
+    chi=game.players[0].shoupai.fulou_candidates[1].model_copy(update={"position":"shangjia"})
+    minggang=game.players[0].shoupai.fulou_candidates[2].model_copy(update={"position":"xiajia"})
+    angang=game.players[0].shoupai.fulou_candidates[3].model_copy()
+    jiagang=game.players[0].shoupai.fulou_candidates[4].model_copy(update={"position":"duimian"})
+    game.fulou(0,peng)
+    assert game.players[0].shoupai.fulou[0].serialize()==peng.serialize()
+    game.players[0].shoupai.fulou_candidates=fulou_candidates
+    game.fulou(0,chi)
+    assert game.players[0].shoupai.fulou[1].serialize()==chi.serialize()
+    game.players[0].shoupai.fulou_candidates=fulou_candidates
+    game.fulou(0,minggang)
+    assert game.players[0].shoupai.fulou[2].serialize()==minggang.serialize()
+    game.players[0].shoupai.fulou_candidates=fulou_candidates
+    game.fulou(0,angang)
+    assert game.players[0].shoupai.fulou[3].serialize()==angang.serialize()
+    game.players[0].shoupai.fulou_candidates=fulou_candidates
+    game.fulou(0,jiagang)
+    assert game.players[0].shoupai.fulou[0].serialize()==jiagang.serialize()
+    assert len(game.players[0].shoupai.bingpai)==1
+    
+    #一発けし
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m1","m1","m1","m2","p3","p3","p3","p5","p5","p5","p6","p7"]]
+    for i in range(4):
+        game.players[i].shoupai.is_yifa=True
+    fulou_candidates=[Fulou.deserialize(f) for f in ["peng,p5,p5+p5,null","chi,p8,p6+p7,null","minggang,p3,p3+p3+p3,null","angang,null,m1+m1+m1+m1,null","jiagang,p5,p5+p5+p5,null"]]
+    game.players[0].shoupai.fulou_candidates=fulou_candidates
+    peng=game.players[0].shoupai.fulou_candidates[0].model_copy(update={"position":"duimian"})
+    game.fulou(0,peng)
+    for i in range(4):
+        assert not game.players[i].shoupai.is_yifa
+
+def test_lingshangzimo():
+    game = Game()
+    game.wangpai.baopai=[Pai.deserialize(p) for p in ["m1","m2","m3","m4","m5"]]
+    game.wangpai.lingshangpai=[Pai.deserialize(p) for p in ["p1","p2","p3","p4"]]
+    game.wangpai.flipped_baopai=[True if i==0 else False for i in range(5)]
+    for i in range(4):
+        lingshangzimo,baopai=game.lingshangzimo(0)
+        assert game.players[0].shoupai.zimopai.serialize()==f"p{i+1}f"
+        assert lingshangzimo.serialize()==f"p{i+1}f"
+        assert baopai.serialize()==f"m{i+2}f"
+        game.players[0].shoupai.zimopai=None
+    #5回目の嶺上ツモはエラー
+    with pytest.raises(ValueError):
+        lingshangzimo,baopai=game.lingshangzimo(0)
+        
+        
+    
+    
+    
     

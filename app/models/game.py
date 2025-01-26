@@ -77,18 +77,16 @@ class Game(BaseModel):
             self.players[i].menfeng = f
             self.score.menfeng[i] = f
     
-    def zimo(self, num: Literal[0, 1, 2, 3]):
-        """
-        Args:
-            num (Literal[0, 1, 2, 3]):
-                - 0: 起家
-                - 1: 下家
-                - 2: 対面
-                - 3: 上家
-        """
+    def zimo(self, pid: Literal[0, 1, 2, 3]):
         zimopai = self.shan.pop()
-        self.players[num].shoupai.do_zimo(zimopai)
+        self.players[pid].shoupai.do_zimo(zimopai)
         return zimopai
+    
+    def lingshangzimo(self, pid: Literal[0, 1, 2, 3]):
+        lingshangzimo=self.wangpai.pop_lingshangpai()
+        self.players[pid].shoupai.do_zimo(lingshangzimo)
+        gangbaopai=self.wangpai.flip_baopai()
+        return lingshangzimo,gangbaopai
 
     def dapai(self, num: Literal[0, 1, 2, 3], dapai: Pai, dapai_idx: int):
         self.players[num].shoupai.do_dapai(dapai, dapai_idx)
@@ -96,8 +94,8 @@ class Game(BaseModel):
         hule_candidates = self.players[num].shoupai.hule_candidates
         fulou_candidates = self.players[num].shoupai.fulou_candidates
 
-    def fulou(self, num: Literal[0, 1, 2, 3], fulou: Fulou):
-        self.players[num].shoupai.do_fulou(fulou)
+    def fulou(self, pid: Literal[0, 1, 2, 3], fulou: Fulou):
+        self.players[pid].shoupai.do_fulou(fulou)
         # 一発消し
         for i in range(4):
             self.players[i].shoupai.is_yifa = False
@@ -122,17 +120,17 @@ class Game(BaseModel):
             raise ValueError(f"プレイヤーの副露情報が取得できません")
         return fulou_player_idx
     
-    def lizhi(self, num: Literal[0, 1, 2, 3], dapai: Pai, dapai_idx: int):
+    def lizhi(self, pid: Literal[0, 1, 2, 3], dapai: Pai, dapai_idx: int):
         is_double_lizhi = (
             all(len(self.players[i].shoupai.fulou) == 0 for i in range(4))
-            and len(self.players[num].he.pais) == 0
+            and len(self.players[pid].he.pais) == 0
         )
-        self.players[num].shoupai.do_lizhi(dapai, dapai_idx, is_double_lizhi)
-        self.players[num].he.pais.append(dapai)
-        self.players[num].he.lizhi_num=len(self.players[num].he.pais)-1
+        self.players[pid].shoupai.do_lizhi(dapai, dapai_idx, is_double_lizhi)
+        self.players[pid].he.pais.append(dapai)
+        self.players[pid].he.lizhi_num=len(self.players[pid].he.pais)-1
         
-        hule_candidates = self.players[num].shoupai.hule_candidates
-        fulou_candidates = self.players[num].shoupai.fulou_candidates
+        hule_candidates = self.players[pid].shoupai.hule_candidates
+        fulou_candidates = self.players[pid].shoupai.fulou_candidates
 
     def hule(
         self,
@@ -546,7 +544,7 @@ class Game(BaseModel):
             and pais[0].num != pais[1].num
         ]
         sansetongshun_elem2: List[Pai] = [
-            sorted([f.nakipai, *f.menpais], key=lambda x: (x.num))[0]
+            sorted([f.fuloupai, *f.menpais], key=lambda x: (x.num))[0]
             for f in self.players[num].shoupai.fulou
             if f.type == "chi"
         ]
@@ -554,7 +552,7 @@ class Game(BaseModel):
         ##メンゼン
         if len(sansetongshun_elem1) >= 3 and any(  # 手牌面子3組以上
             all(
-                f"{s}{p.num}" in [p.serialize()[:2] for p in sansetongshun_elem1]
+                f"{s}{p.num}" in [p.serialize(2) for p in sansetongshun_elem1]
                 for s in ["m", "p", "s"]
             )
             for p in sansetongshun_elem1
@@ -566,7 +564,7 @@ class Game(BaseModel):
             all(
                 f"{s}{p.num}"
                 in [
-                    p.serialize()[:2] for p in sansetongshun_elem1 + sansetongshun_elem2
+                    p.serialize(2) for p in sansetongshun_elem1 + sansetongshun_elem2
                 ]
                 for s in ["m", "p", "s"]
             )
@@ -579,7 +577,7 @@ class Game(BaseModel):
         ##メンゼン
         if len(sansetongshun_elem1) >= 3 and any(  # 手牌面子3組以上
             all(
-                f"{s}{n}" in [p.serialize()[:2] for p in sansetongshun_elem1]
+                f"{s}{n}" in [p.serialize(2) for p in sansetongshun_elem1]
                 for n in ["1", "4", "7"]
             )
             for s in ["m", "p", "s"]
@@ -593,7 +591,7 @@ class Game(BaseModel):
             all(
                 f"{s}{n}"
                 in [
-                    p.serialize()[:2] for p in sansetongshun_elem1 + sansetongshun_elem2
+                    p.serialize(2) for p in sansetongshun_elem1 + sansetongshun_elem2
                 ]
                 for n in ["1", "4", "7"]
             )
@@ -662,7 +660,7 @@ class Game(BaseModel):
         if any(
             all(
                 f"{s}{p.num}"
-                in [p.serialize()[:2] for p in sansetongke_elem1 + sansetongke_elem2]
+                in [p.serialize(2) for p in sansetongke_elem1 + sansetongke_elem2]
                 for s in ["m", "p", "s"]
             )
             for p in sansetongke_elem1 + sansetongke_elem2
@@ -675,15 +673,15 @@ class Game(BaseModel):
         if (
             all(f.type != "chi" for f in self.players[num].shoupai.fulou)
             and any(
-                p.serialize()[:2] in ["m1", "m9", "p1", "p9", "s1", "s9"]
+                p.serialize(2) in ["m1", "m9", "p1", "p9", "s1", "s9"]
                 for p in pat.pais + hunlaotou_elem
             )
             and any(
-                p.serialize()[:2] in [f"z{n}" for n in range(1, 8)]
+                p.serialize(2) in [f"z{n}" for n in range(1, 8)]
                 for p in pat.pais + hunlaotou_elem
             )
             and all(
-                p.serialize()[:2]
+                p.serialize(2)
                 in ["m1", "m9", "p1", "p9", "s1", "s9"] + [f"z{n}" for n in range(1, 8)]
                 for p in pat.pais + hunlaotou_elem
             )
@@ -709,7 +707,7 @@ class Game(BaseModel):
         if (
             any(  # 少なくとも1つの辺帳面子を含む
                 pais[0] != pais[1]
-                and pais[0].serialize()[:2] in ["m1", "m7", "p1", "p7", "s1", "s7"]
+                and pais[0].serialize(2) in ["m1", "m7", "p1", "p7", "s1", "s7"]
                 for pais in hunquandaiyaojiu_elem1 + hunquandaiyaojiu_elem2
             )
             and any(  # 少なくとも1つの字牌を含む
@@ -762,7 +760,7 @@ class Game(BaseModel):
         # 純全帯幺九
         if any(  # 少なくとも1つの辺帳面子を含む
             pais[0] != pais[1]
-            and pais[0].serialize()[:2] in ["m1", "m7", "p1", "p7", "s1", "s7"]
+            and pais[0].serialize(2) in ["m1", "m7", "p1", "p7", "s1", "s7"]
             for pais in hunquandaiyaojiu_elem1 + hunquandaiyaojiu_elem2
         ) and all(  # 全てに一九牌が含まれる
             any(
@@ -852,7 +850,7 @@ class Game(BaseModel):
 
         # 緑一色
         if all(
-            p.serialize()[:2] in ["s2", "s3", "s4", "s6", "s8", "z6"]
+            p.serialize(2) in ["s2", "s3", "s4", "s6", "s8", "z6"]
             for p in [p for p in self.players[num].shoupai.get_fuloupais()] + pat.pais
         ):
             hupai.fanshu += 100
@@ -884,7 +882,7 @@ class Game(BaseModel):
 
         # 字一色
         if all(
-            p.serialize()[:2] in [f"z{n}" for n in range(1, 8)]
+            p.serialize(2) in [f"z{n}" for n in range(1, 8)]
             for p in [p for p in self.players[num].shoupai.get_fuloupais()] + pat.pais
         ):
             hupai.fanshu += 100
@@ -907,7 +905,7 @@ class Game(BaseModel):
 
         # 清老頭
         if all(
-            p.serialize()[:2] in ["m1", "m9", "p1", "p9", "s1", "s9"]
+            p.serialize(2) in ["m1", "m9", "p1", "p9", "s1", "s9"]
             for p in [p for p in self.players[num].shoupai.get_fuloupais()] + pat.pais
         ):
             hupai.fanshu += 100
@@ -1007,7 +1005,7 @@ class Game(BaseModel):
     
     def _get_all_he_pai(self,player_id: Literal[0, 1, 2, 3],skip:int=0):
         filtered_pai:List[str]=[]
-        all_he_pai=[ (i,j,p.serialize()[:2]) for i in self._get_player_order() for j,p in enumerate(self.players[i].he.pais)]
+        all_he_pai=[ (i,j,p.serialize(2)) for i in self._get_player_order() for j,p in enumerate(self.players[i].he.pais)]
         filtered_pai = [z for x,y,z in sorted(
             filter(lambda x: x[1] > skip or (x[1] == skip and x[0] >= player_id), all_he_pai),
             key=lambda y: (y[1], y[0])
@@ -1039,11 +1037,13 @@ class Game(BaseModel):
         
         return is_tingpaiqing
     
-    def get_serialized_hule_pai(self, num: Literal[0, 1, 2, 3],check_tingpaiqing:bool=False):
-        hule_pai=self.players[num].shoupai.get_serialized_hule_pai()
+    def get_serialized_hule_pai(self, pid: Literal[0, 1, 2, 3],check_tingpaiqing:bool=False):
+        hule_pai=self.players[pid].shoupai.get_serialized_hule_pai()
         if not hule_pai:
             return None
-        if  check_tingpaiqing and not self.is_tingpaiqing(num):
+        if  check_tingpaiqing and not self.is_tingpaiqing(pid):
             hule_pai+="+b0"
         return hule_pai
-        
+    
+    def get_zuoci_player(self):
+        return next((i,p) for i,p in enumerate(self.players) if  self.players[i].menfeng==self.zuoci)
