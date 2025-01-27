@@ -1030,6 +1030,8 @@ class Game(BaseModel):
         if lizhi_num ==-1:
             lizhi_num=len(self.players[num].he.pais)-1
         all_he_pai=self._get_all_he_pai(num,lizhi_num)
+        if all_he_pai:#最後の捨て牌は除く
+            del all_he_pai[-1]
         for hule in hule_pai.split("+"):
             if hule[:2] in all_he_pai:
                 is_tingpaiqing=False

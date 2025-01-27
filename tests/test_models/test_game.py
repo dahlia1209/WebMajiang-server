@@ -1287,6 +1287,22 @@ def test_is_tingpaiqing():
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f"
     
     #捨て牌あり、立直なし、フリテンあり（自家捨て牌）
+    
+    #捨て牌あり、立直なし、フリテンなし
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["東", "南", "西", "北"]):
+        game.players[player_id].menfeng=f
+    for player_id,s in enumerate(["m","s","z","p"]):
+        for n in range(1,6):
+            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    assert game.is_tingpaiqing(0)
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f"
+    
+    #捨て牌あり、立直なし、フリテンあり（自家捨て牌）
     game = Game()
     game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
     game.players[0].shoupai.xiangting=0
@@ -1376,6 +1392,7 @@ def test_is_tingpaiqing():
             game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
     assert game.is_tingpaiqing(0)
     game.players[1].he.pais.append(Pai.deserialize(f"p5"))
+    game.players[2].he.pais.append(Pai.deserialize(f"p6"))
     assert not game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
 
