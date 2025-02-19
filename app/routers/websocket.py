@@ -247,8 +247,8 @@ class WebSocketMessageHandler:
     async def _send_lizhi(self, game: Game) -> None:
         """立直送信"""
         lrms=[game.players[i].last_recieved_message for i in range(4)]
-        last_lizhipai=next((x.game.lizhipai for x in lrms if x is not None and x.game.lizhipai is not None),None)
-        lizhipai_str,lizhipai_idx=self._validate_dapai(last_lizhipai)
+        last_dapai=next((x.game.dapai for x in lrms if x is not None and x.game.dapai is not None),None)
+        lizhipai_str,lizhipai_idx=self._validate_dapai(last_dapai)
         for i in range(4):
             lizhipai_msg = GameMessage(
                 type="game",
@@ -300,12 +300,14 @@ class WebSocketMessageHandler:
                     paishu=70,
                     jushu=game.score.jushu,
                     zhuangfeng=game.score.zhuangfeng,
-                    defen=game.score.defen
+                    defen=game.score.defen,
                 )
             )
-            qipai_msg = GameMessage(type="game", game=GameState(action="qipai",qipai="+".join(
-                sorted([p.serialize() for p in game.players[i].shoupai.bingpai])
-            )))
+            qipai_msg = GameMessage(type="game", game=GameState(
+                action="qipai",qipai="+".join(sorted([p.serialize() for p in game.players[i].shoupai.bingpai])),
+                fulouCandidates=game.players[i].shoupai.get_serialized_fulou_candidates()
+                ),
+                                    )
             if not game.players[i].is_bot():
                 await self.manager.send_personal_message(
                     score_msg, game.players[i].socket
@@ -464,7 +466,7 @@ class WebSocketMessageHandler:
         async def process_lizhi():
             if   game.players[player].last_recieved_message is None or  game.players[player].last_recieved_message.game.lizhipai is None:
                 raise ValueError("和了牌が存在しません")
-            dapai_str,dapai_idx=self._validate_dapai(game.players[player].last_recieved_message.game.lizhipai)
+            dapai_str,dapai_idx=self._validate_dapai(game.players[player].last_recieved_message.game.dapai)
             game.lizhi(player,Pai.deserialize(dapai_str),dapai_idx)
             await self._send_lizhi(game=game)
         async def process_fulou():

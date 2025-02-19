@@ -95,6 +95,9 @@ class Shoupai(BaseModel):
     def do_qipai(self):
         # シャン点数計算
         self._compute_xiangting()
+        
+        # 副露候補候補
+        self._compute_fulou_candidates(fulou_type=["chi", "peng", "minggang"])
     
     def do_zimo(self, pai: Pai):
         if self.zimopai is not None:
