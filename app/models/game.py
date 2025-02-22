@@ -88,9 +88,17 @@ class Game(BaseModel):
         gangbaopai=self.wangpai.flip_baopai()
         return lingshangzimo,gangbaopai
 
+    def _get_dapai_id(self):
+        dapai_id=0
+        for i in range(4):
+            if self.players[i].he.get_last_pai_id()>=dapai_id:
+                dapai_id=self.players[i].he.get_last_pai_id()+1
+        
+        return dapai_id
+    
     def dapai(self, num: Literal[0, 1, 2, 3], dapai: Pai, dapai_idx: int):
         self.players[num].shoupai.do_dapai(dapai, dapai_idx)
-        self.players[num].he.pais.append(dapai)
+        self.players[num].he.do_dapai(dapai,self._get_dapai_id())
         hule_candidates = self.players[num].shoupai.hule_candidates
         fulou_candidates = self.players[num].shoupai.fulou_candidates
 
@@ -126,8 +134,9 @@ class Game(BaseModel):
             and len(self.players[pid].he.pais) == 0
         )
         self.players[pid].shoupai.do_lizhi(dapai, dapai_idx, is_double_lizhi)
-        self.players[pid].he.pais.append(dapai)
-        self.players[pid].he.lizhi_num=len(self.players[pid].he.pais)-1
+        self.players[pid].he.do_lizhi(dapai,self._get_dapai_id())
+        # self.players[pid].he.pais.append(dapai)
+        # self.players[pid].he.lizhi_num=len(self.players[pid].he.pais)-1
         
         hule_candidates = self.players[pid].shoupai.hule_candidates
         fulou_candidates = self.players[pid].shoupai.fulou_candidates
@@ -1005,7 +1014,7 @@ class Game(BaseModel):
     
     def _get_all_he_pai(self,player_id: Literal[0, 1, 2, 3],skip:int=0):
         filtered_pai:List[str]=[]
-        all_he_pai=[ (i,j,p.serialize(2)) for i in self._get_player_order() for j,p in enumerate(self.players[i].he.pais)]
+        all_he_pai=[ (i,j,p.serialize(2)) for i in self._get_player_order() for j,p in zip(self.players[i].he.pai_id,self.players[i].he.pais)]
         filtered_pai = [z for x,y,z in sorted(
             filter(lambda x: x[1] > skip or (x[1] == skip and x[0] >= player_id), all_he_pai),
             key=lambda y: (y[1], y[0])
@@ -1026,9 +1035,9 @@ class Game(BaseModel):
                 break
         
         #他家捨て牌にアガリ牌が存在するかチェック
-        lizhi_num=self.players[num].he.lizhi_num
+        lizhi_num=self.players[num].he.lizhi_id
         if lizhi_num ==-1:
-            lizhi_num=len(self.players[num].he.pais)-1
+            lizhi_num=self.players[num].he.get_last_pai_id()
         all_he_pai=self._get_all_he_pai(num,lizhi_num)
         if all_he_pai:#最後の捨て牌は除く
             del all_he_pai[-1]

@@ -181,7 +181,7 @@ def test_lizhi(client, handler):
                 assert player_id==i
                 assert recieved_game_msg.game.action=="zimo"
                 lizhipai=recieved_game_msg.game.zimopai
-                client_msg=GameMessage(game=GameState(action="zimo",lizhipai=",".join([lizhipai,"99"])))
+                client_msg=GameMessage(game=GameState(action="zimo",dapai=",".join([lizhipai,"99"]),lizhipai=lizhipai))
                 print("client_game_msg",client_msg)
                 websocket.send_json(client_msg.model_dump())
                 res = websocket.receive_json()

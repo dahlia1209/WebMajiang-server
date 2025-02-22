@@ -1280,9 +1280,10 @@ def test_is_tingpaiqing():
     game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
     for player_id,f in enumerate(["東", "南", "西", "北"]):
         game.players[player_id].menfeng=f
-    for player_id,s in enumerate(["m","p","s","z"]):
-        for n in range(1,8):
-            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    for n in range(1,8):
+        for player_id,s in enumerate(["m","p","s","z"]):
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
     assert game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f"
     
@@ -1296,9 +1297,10 @@ def test_is_tingpaiqing():
     game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
     for player_id,f in enumerate(["東", "南", "西", "北"]):
         game.players[player_id].menfeng=f
-    for player_id,s in enumerate(["m","s","z","p"]):
-        for n in range(1,6):
-            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    for n in range(1,6):
+        for player_id,s in enumerate(["m","s","z","p"]):
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
     assert game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f"
     
@@ -1310,9 +1312,10 @@ def test_is_tingpaiqing():
     game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
     for player_id,f in enumerate(["東", "南", "西", "北"]):
         game.players[player_id].menfeng=f
-    for player_id,s in enumerate(["p","m","s","z"]):
-        for n in range(1,6):
-            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    for n in range(1,6):
+        for player_id,s in enumerate(["p","m","s","z"]):
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
     assert not game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
     
@@ -1324,9 +1327,29 @@ def test_is_tingpaiqing():
     game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
     for player_id,f in enumerate(["東", "南", "西", "北"]):
         game.players[player_id].menfeng=f
-    for player_id,s in enumerate(["m","p","s","z"]):
-        for n in range(1,6):
-            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    for n in range(1,6):
+        for player_id,s in enumerate(["m","p","s","z"]):
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
+    assert not game.is_tingpaiqing(0)
+    assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
+    
+    #捨て牌あり、立直なし、フリテンあり(他家捨て牌)、副露あり
+    game = Game()
+    game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
+    game.players[0].shoupai.xiangting=0
+    hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
+    game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
+    for player_id,f in enumerate(["東", "南", "西", "北"]):
+        game.players[player_id].menfeng=f
+    for n in range(1,4): #下家から３回副露した想定で自家と下家で３回打牌する
+        for player_id,s in enumerate(["m","p"]):
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
+    for n in range(4,6):
+        for player_id,s in enumerate(["m","p","s","z"]):
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
     assert not game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
     
@@ -1336,14 +1359,17 @@ def test_is_tingpaiqing():
     game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
     game.players[0].shoupai.xiangting=0
     game.players[0].shoupai.lizhi_flag=1
-    game.players[0].he.lizhi_num=5
+    
     hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
     game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
     for player_id,f in enumerate(["東", "南", "西", "北"]):
         game.players[player_id].menfeng=f
-    for player_id,s in enumerate(["m","p","s","z"]):
-        for n in range(1,8):
-            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    for n in range(1,8):
+        for player_id,s in enumerate(["m","p","s","z"]):
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
+            if player_id==0 and n==6:
+                game.players[0].he.lizhi_id=game._get_dapai_id()
     assert game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f"
     
@@ -1352,14 +1378,16 @@ def test_is_tingpaiqing():
     game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
     game.players[0].shoupai.xiangting=0
     game.players[0].shoupai.lizhi_flag=1
-    game.players[0].he.lizhi_num=5
     hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
     game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
     for player_id,f in enumerate(["東", "南", "西", "北"]):
         game.players[player_id].menfeng=f
-    for player_id,s in enumerate(["p","m","s","z"]):
-        for n in range(1,8):
-            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    for n in range(1,8):
+        for player_id,s in enumerate(["p","m","s","z"]):
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
+            if player_id==0 and n==7:
+                game.players[0].he.lizhi_id=game._get_dapai_id()
     assert not game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
     
@@ -1368,14 +1396,16 @@ def test_is_tingpaiqing():
     game.players[0].shoupai.bingpai=[Pai.deserialize(s) for s in ["m1","m2","m3","m5","m6","m7","p1","p2","p3","m1","m1","p6","p7"]]
     game.players[0].shoupai.xiangting=0
     game.players[0].shoupai.lizhi_flag=1
-    game.players[0].he.lizhi_num=0
     hulepai=[Pai.deserialize(s) for s in ["p5","p8"]]
     game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
     for player_id,f in enumerate(["東", "南", "西", "北"]):
         game.players[player_id].menfeng=f
-    for player_id,s in enumerate(["m","p","s","z"]):
-        for n in range(1,8):
-            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    for n in range(1,8):
+        for player_id,s in enumerate(["m","p","s","z"]):
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
+            if player_id==0 and n==5:
+                game.players[0].he.lizhi_id=game._get_dapai_id()
     assert not game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
     
@@ -1387,12 +1417,14 @@ def test_is_tingpaiqing():
     game.players[0].shoupai.hule_candidates=[PatternResult(nums=[3,3,3,2,3],pais=game.players[0].shoupai.bingpai+[p]) for p in hulepai]
     for player_id,f in enumerate(["北", "東", "南", "西"]):
         game.players[player_id].menfeng=f
-    for player_id,s in enumerate(["m","p","s","z"]):
-        for n in range(1,5):
-            game.players[player_id].he.pais.append(Pai.deserialize(f"{s}{n}"))
+    for n in range(1,5):
+        for i,s in enumerate(["p","s","z","m"]):
+            player_id=i+1 if i!=3 else 0
+            dapai_id=game._get_dapai_id()
+            game.players[player_id].he.do_dapai(Pai.deserialize(f"{s}{n}"),dapai_id)
     assert game.is_tingpaiqing(0)
-    game.players[1].he.pais.append(Pai.deserialize(f"p5"))
-    game.players[2].he.pais.append(Pai.deserialize(f"p6"))
+    game.players[1].he.do_dapai(Pai.deserialize(f"p5"),game._get_dapai_id())
+    game.players[2].he.do_dapai(Pai.deserialize(f"p6"),game._get_dapai_id())
     assert not game.is_tingpaiqing(0)
     assert game.get_serialized_hule_pai(0,True)=="p5f+p8f+b0"
 
