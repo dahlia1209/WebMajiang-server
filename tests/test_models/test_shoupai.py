@@ -757,7 +757,6 @@ def test_comupute_lizhi_candidates():
     shoupai.bingpai_candidates=xiangting_result.best_candidates
     shoupai.hule_candidates=xiangting_result.hule_candidates
     lizhi_pai = shoupai._comupute_lizhi_candidates()
-    print("lizhi_pai",[p.serialize() for p in lizhi_pai])
     # print("pais,nums",[("+".join([p.serialize() for p in pat.pais]),pat.nums) for pat in lizhi_pai])
     assert len(lizhi_pai)==9
     

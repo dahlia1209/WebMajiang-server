@@ -104,9 +104,7 @@ def test_qipai():
     assert game.score.menfeng==["東", "南", "西", "北"]
 
     old_game = game.model_copy()
-    print("old_game.players[0].menfeng",old_game.players[0].menfeng)
     next_game = game.next_game()
-    print("old_game.players[0].menfeng,next_game.players[0].menfeng",old_game.players[0].menfeng,next_game.players[0].menfeng)
     next_game.qipai()
     for i in range(4): # 時々エラーが起きる
         assert any(next_game.players[i].shoupai.bingpai[j]!= old_game.players[i].shoupai.bingpai[j] for j in range(13))
@@ -1125,7 +1123,6 @@ def test_calculate_hu(test_data):
     input_hupai.pat=PatternResult(bingpai,[3,3,3,2,3])
     result_hupai=game._calculate_hu(0,input_hupai)
     assert result_hupai.hu ==30
-    print(input_hupai.pat.pais)
     
     #4順子+役無雀頭+両面+ツモ
     game = Game()

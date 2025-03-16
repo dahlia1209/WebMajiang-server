@@ -478,7 +478,6 @@ class Shoupai(BaseModel):
                 <= 4 - fulou_num - mianzi_num  # 最大ブロック数=4-副露数-面子数
                 else 4 - fulou_num - mianzi_num
             )  # ターツ数分シャン点数を引く
-            # print("pat", [p.serialize() for p in pat.pais], pat.nums)
             # 雀頭なしかつ孤立牌が全て雀頭待ちにならない場合はシャン点数足す(最後の４枚が槓子の形)
             if (
                 1 in pat.nums
@@ -523,15 +522,6 @@ class Shoupai(BaseModel):
             # テンパイであればアガリ牌を取得
             # if xiangting==0:
             #     self.hule_candidates+=self._compute_mianzi_hule_candidates(pat)
-
-            # print(
-            #     "pat,has_jiangpai,has_jiangpai,xiangting,hule_pais",
-            #     "+".join([p.serialize(2) for p in pat.pais]),
-            #     pat.nums,
-            #     jiangpai_idx,
-            #     xiangting,
-            #     [p.serialize(2) for p in hule_pais],
-            # )
 
         # アガリ候補追加
         for pat in temp_candidates:
@@ -651,7 +641,6 @@ class Shoupai(BaseModel):
                 filtered_pais = [Pai(suit=p.suit, num=p.num) for p in pais]
                 # 使用した牌を除外
                 for p in combi_pai:
-                    # print("filtered_pais,combi_pai",[p.serialize(2) for p in filtered_pais],p)
                     filtered_pais.remove(p)
 
                 # 再帰的に処理を継続
@@ -706,7 +695,6 @@ class Shoupai(BaseModel):
                 self.bingpai_candidates.extend(pattern.best_candidates)
                 self.hule_candidates.extend(pattern.hule_candidates)
 
-        # print("xiangting,self.bingpai_candidates",self.xiangting,[ ("+".join([ x.serialize(2) for x in p.pais]),p.nums) for p in self.bingpai_candidates])
 
         return self.xiangting
 
@@ -766,7 +754,6 @@ class Shoupai(BaseModel):
             ):
                 patterns["shunzi"].append(shunzi)
 
-        # print("pais pattern","+".join([p.serialize(2) for p in pais]),[(k,patterns[k]) for (k) in patterns.keys()])
 
         return patterns
 

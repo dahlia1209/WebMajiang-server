@@ -19,11 +19,13 @@ class ConnectionManager:
             with cls._lock: 
                 if cls._instance is None: 
                     cls._instance = super().__new__(cls)
-                    cls._instance.manager = ConnectionManager()
+                    # シングルトンの初期化
+                    cls._instance.active_connections = []
         return cls._instance
     
     def __init__(self,sokcets:List[WebSocket]=[],games:List[Game]=[]):
-        self.active_connections: List[WebSocket] = sokcets
+        # self.active_connections: List[WebSocket] = sokcets
+        pass
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()

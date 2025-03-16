@@ -507,7 +507,6 @@ class Game(BaseModel):
             hupai.name.append(f"平和")
 
         # 一盃口：beikou
-        # print("beikou",[sorted(pais,key=lambda x:x.serialize()) for j,pais in enumerate(pat.get_pai_list())],pat.nums)
         if all(  # 副露は暗槓のみ可
             f.type == "angang" for f in self.players[num].shoupai.fulou
         ) and sum(
@@ -559,7 +558,6 @@ class Game(BaseModel):
             for f in self.players[num].shoupai.fulou
             if f.type == "chi"
         ]
-        # print("sansetongshun_elem1,sansetongshun_elem2",sansetongshun_elem1,sansetongshun_elem2)
         ##メンゼン
         if len(sansetongshun_elem1) >= 3 and any(  # 手牌面子3組以上
             all(
@@ -713,7 +711,6 @@ class Game(BaseModel):
             )
             for f in self.players[num].shoupai.fulou
         ]
-        # print("hunquandaiyaojiu_elem1+hunquandaiyaojiu_elem2",hunquandaiyaojiu_elem1+hunquandaiyaojiu_elem2)
         ##メンゼン
         if (
             any(  # 少なくとも1つの辺帳面子を含む
