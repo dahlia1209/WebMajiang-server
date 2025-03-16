@@ -31,20 +31,21 @@ from threading import local,Lock
 router = APIRouter()
 
 class WebSocketMessageHandler:
-    _instance: Optional['WebSocketMessageHandler'] = None
-    _lock = Lock()
+    _instance = None
+    _initialized = False
     
-    def __new__(cls):
-        if cls._instance is None:
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
             cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
         return cls._instance
     
-    def __init__(self, connection_manager: ConnectionManager=ConnectionManager()):
-        self.manager = connection_manager
-        self._thread_local: local = local()
-        self._lock = Lock()
-        # self.value = 0
-        self.games:List[Game]=[]
+    def __init__(self, connection_manager=None):
+        if not self._initialized:
+            self.manager = connection_manager or ConnectionManager()
+            self._thread_local = local()
+            self.games:List[Game] = []
+            self._initialized = True
     
     def _set_local_websocket(self,websocket:WebSocket):
         self._thread_local.websocket = websocket
@@ -59,6 +60,7 @@ class WebSocketMessageHandler:
         for game in self.games:
             for player in game.players:
                 if player.socket == self._get_local_websocket():
+                    print("_get_game,self._get_local_websocket(),player.socket,game.id,len(self.games)",self._get_local_websocket(),player.socket,game.id,len(self.games))
                     return game
         
         return None
@@ -73,6 +75,7 @@ class WebSocketMessageHandler:
     
     def _create_game(self, rule:Rule=Rule()):
         new_game=Game(rule=rule,players=([Player(socket=self._get_local_websocket())]+[Player() for _ in range(3)]))
+        # print("_create_game,new_game,self._get_local_websocket()",new_game,self._get_local_websocket())
         new_game.select_zuoci()
         last_game=self._get_game()
         if last_game:
@@ -80,6 +83,10 @@ class WebSocketMessageHandler:
             self._remove_game()
         new_game.qipai()
         self.games.append(new_game)
+        # print("_create_game,self._get_local_websocket(),handler._get_local_websocket()",self._get_local_websocket())
+        # for p in new_game.players:
+        #     if p.socket:
+        #         print("_create_game,self._get_local_websocket(),p.socket,new_game.id",self._get_local_websocket(),p.socket,new_game.id)
         return new_game
 
     async def handle_message(self, message_data: dict) -> None:
@@ -581,10 +588,12 @@ async def websocket_endpoint(
     websocket: WebSocket, handler: WebSocketMessageHandler = Depends(get_websocket_handler_manager)
 ):
     await handler.manager.connect(websocket)
+    print("websocket_endpoint,len(handler.games),len(handler.manager.active_connections)",len(handler.games),len(handler.manager.active_connections))
 
     try:
         while True:
             handler._set_local_websocket(websocket)
+            # print("_get_game,self._get_local_websocket(),handler._get_local_websocket()",handler._get_local_websocket())
             data = await websocket.receive_json()
             print(f"Received message: {data}")
             await handler.handle_message(data)

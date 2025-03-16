@@ -13,6 +13,7 @@ import random
 from collections import Counter
 from dataclasses import dataclass, field
 from fastapi import WebSocket
+import uuid
 
 
 @dataclass
@@ -24,11 +25,12 @@ class Hupai:
     
 
 class Game(BaseModel):
-    players: List[Player] = Field(default=[Player() for _ in range(4)])
-    shan: Shan = Field(default=Shan())
-    wangpai: Wangpai = Field(default=Wangpai())
-    rule: Rule = Field(default=Rule())
-    score: Score = Field(default=Score())
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    players: List[Player] = Field(default_factory=lambda: [Player() for _ in range(4)])
+    shan: Shan = Field(default_factory=Shan)
+    wangpai: Wangpai = Field(default_factory=Wangpai)
+    rule: Rule = Field(default_factory=Rule)
+    score: Score = Field(default_factory=Score)
     zuoci: Feng = Field(default="東")
 
     def qipai(self):

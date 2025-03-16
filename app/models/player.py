@@ -9,10 +9,10 @@ from fastapi import WebSocket
 
 
 class Player(BaseModel):
-    shoupai: Shoupai = Field(default=Shoupai())
+    shoupai: Shoupai = Field(default_factory=Shoupai)
     menfeng: Feng = Field(default=None)
     user: Optional[User] = Field(default=None)
-    he: He = Field(default=He())
+    he: He = Field(default_factory=He)
     socket: Optional[WebSocket]=Field(default=None)
     last_recieved_message:Optional[GameMessage]=Field(default=None)
     last_sent_message:Optional[GameMessage]=Field(default=None)
