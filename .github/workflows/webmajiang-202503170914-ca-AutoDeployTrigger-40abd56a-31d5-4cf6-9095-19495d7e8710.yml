@@ -1,38 +1,72 @@
-name: Trigger auto deployment for webmajiang-202503170914-ca
-# When this action will be executed
+name: Build, Push and Deploy Docker Image to Azure Container Apps
+
 on:
-  # Automatically trigger it when detected changes in repo
   push:
-    branches: 
-      [ main ]
-    paths:
-    - '**'
-    - '.github/workflows/webmajiang-202503170914-ca-AutoDeployTrigger-40abd56a-31d5-4cf6-9095-19495d7e8710.yml'
-  # Allow manual trigger 
-  workflow_dispatch:      
+    branches: ['main']
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CONTAINER_APP_NAME: webmajiang-202503170914-ca
+  RESOURCE_GROUP: webmajiang-202503170914-rg
+
 jobs:
-  build-and-deploy:
+  build-and-push-image:
     runs-on: ubuntu-latest
-    permissions: 
-      id-token: write #This is required for requesting the OIDC JWT Token
-      contents: read #Required when GH token is used to authenticate with private repo
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
     steps:
-      - name: Checkout to the branch
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+      
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+          
+      # Azure Login with OIDC
       - name: Azure Login
         uses: azure/login@v1
         with:
           client-id: ${{ secrets.WEBMAJIANG202503170914CA_AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.WEBMAJIANG202503170914CA_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.WEBMAJIANG202503170914CA_AZURE_SUBSCRIPTION_ID }}
-      - name: Build and push container image to registry
-        uses: azure/container-apps-deploy-action@v2
+      
+      # Deploy to Azure Container Apps
+      - name: Deploy to Azure Container App
+        uses: azure/CLI@v1
         with:
-          appSourcePath: ${{ github.workspace }}
-          dockerfilePath: Dockerfile
-          registryUrl: ghcr.io
-          registryUsername: ${{ secrets.WEBMAJIANG202503170914CA_REGISTRY_USERNAME }}
-          registryPassword: ${{ secrets.WEBMAJIANG202503170914CA_REGISTRY_PASSWORD }}
-          containerAppName: webmajiang-202503170914-ca
-          resourceGroup: webmajiang-202503170914-rg
-          imageToBuild: ghcr.io/${{ secrets.WEBMAJIANG202503170914CA_REGISTRY_USERNAME }}/webmajiang-202503170914-ca:${{ github.sha }}
+          inlineScript: |
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image ${{ steps.meta.outputs.tags }} \
+              --registry-username ${{ github.actor }} \
+              --registry-password ${{ secrets.GITHUB_TOKEN }}
