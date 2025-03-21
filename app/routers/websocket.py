@@ -118,10 +118,10 @@ class WebSocketMessageHandler:
             print(f"エラー発生場所:\n{traceback.format_exc()}")
             raise
 
-    async def _handle_simple_message(self, data: dict) -> None:
+    async def _handle_simple_message(self, data: dict, websocket: WebSocket) -> None:
         """シンプルメッセージの処理"""
         message = SimpleMessage(**data)
-        await self._get_local_websocket().send_json(message.model_dump())
+        await websocket.send_json(message.model_dump())
 
     async def _handle_game_message(self, data: dict, websocket: WebSocket) -> None:
         """ゲームメッセージの処理"""

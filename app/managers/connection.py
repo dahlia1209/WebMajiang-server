@@ -3,6 +3,7 @@ from pydantic import BaseModel, ValidationError
 from typing import Literal, Dict, Any, List, Union,Optional
 from app.models.websocket import WebSocketMessage
 from app.models.game import Game
+from app.models.websocket import SimpleMessage
 from app.models.rule import Rule
 from ..models.player import Player
 import traceback
@@ -13,6 +14,7 @@ from threading import local,Lock
 class ConnectionManager:
     _instance: Optional['ConnectionManager'] = None
     _lock = Lock()
+    active_connections:List[WebSocket]=[]
     
     def __new__(cls):
         if cls._instance is None:
@@ -30,6 +32,8 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        simpleMessage=SimpleMessage(type="message",msg="websocket connection opened")
+        await websocket.send_json(simpleMessage.model_dump())
 
     def disconnect(self, websocket: WebSocket):
         self.active_connections.remove(websocket)
