@@ -85,7 +85,7 @@ jobs:
            registryPassword: ${{ secrets.GITHUB_TOKEN }}
            containerAppName: webmajiang-202503170914-ca
            resourceGroup: webmajiang-202503170914-rg
-           imageToBuild: ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+           imageToBuild: ghcr.io/dahlia1209/webmajiang-server:main
            _buildArgumentsKey_: |
              _buildArgumentsValues_
       
