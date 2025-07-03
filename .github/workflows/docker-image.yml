@@ -67,22 +67,20 @@ jobs:
           tenant-id: ${{ secrets.WEBMAJIANG202503170914CA_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.WEBMAJIANG202503170914CA_AZURE_SUBSCRIPTION_ID }}
 
-      # Container AppにGHCRレジストリを設定
+      # Container AppにGHCRレジストリを設定（認証情報付き）
       - name: Configure Container App registry
         run: |
           az containerapp registry set \
             --name webmajiang-202503170914-ca \
             --resource-group webmajiang-202503170914-rg \
-            --server ghcr.io
+            --server ghcr.io \
+            --username ${{ github.actor }} \
+            --password ${{ secrets.GITHUB_TOKEN }}
 
-      # パブリックGHCRイメージをContainer Appにデプロイ
-      # パブリックGHCRイメージをContainer Appにデプロイ（認証付き）
-      - name: Deploy public GHCR image to Container App
+      # GHCRイメージをContainer Appにデプロイ
+      - name: Deploy GHCR image to Container App
         uses: azure/container-apps-deploy-action@v2
         with:
           containerAppName: webmajiang-202503170914-ca
           resourceGroup: webmajiang-202503170914-rg
           imageToDeploy: ghcr.io/dahlia1209/webmajiang-server:${{ github.sha }}
-          registryServer: ghcr.io
-          registryUsername: ${{ github.actor }}
-          registryPassword: ${{ secrets.GITHUB_TOKEN }}
