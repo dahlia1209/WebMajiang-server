@@ -48,3 +48,24 @@ $rg=$(az group list --query "[? contains(name,'webmajiang')].name" -o tsv)
 az group delete  --name $rg  --yes
 
 ```
+
+## Github Actionsのトークン更新
+```
+・下記URLアクセス＞Generate new token>Generate new token(classic)
+https://github.com/settings/tokens
+・下記設定
+　Note：{yyyyMMdd}_githubactionstoken
+　Select scopes：
+　　write:packages：☑
+・シークレットコピー
+・下記リンク開く＞GHCR_TOKENの値更新
+https://github.com/dahlia1209/WebMajiang-server/settings/secrets/actions
+・下記コマンド実行してデプロイ確認
+az containerapp registry set `
+  --name webmajiang-202503170914-ca `
+  --resource-group webmajiang-202503170914-rg `
+  --server ghcr.io `
+  --username dahlia1209 `
+  --password {{GITHUBアクセストークン}}
+```
+  
