@@ -32,7 +32,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.CR_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       # This step uses [docker/metadata-action](https://github.com/docker/metadata-action#about) to extract tags and labels that will be applied to the specified image. The `id` "meta" allows the output of this step to be referenced in a subsequent step. The `images` value provides the base name for the tags and labels.
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -83,7 +83,7 @@ jobs:
            _dockerfilePathKey_: _dockerfilePath_
            registryUrl: ghcr.io
            registryUsername: ${{ github.actor }}
-           registryPassword: ${{ secrets.CR_PAT }}
+           registryPassword: ${{ secrets.GITHUB_TOKEN }}
            containerAppName: webmajiang-202503170914-ca
            resourceGroup: webmajiang-202503170914-rg
            imageToBuild: ghcr.io/dahlia1209/webmajiang-server:main
