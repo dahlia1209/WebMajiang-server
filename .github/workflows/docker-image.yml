@@ -17,6 +17,9 @@ jobs:
       packages: write
       attestations: write
       id-token: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.push.outputs.digest }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,6 +36,11 @@ jobs:
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
         id: push
@@ -83,4 +91,4 @@ jobs:
         with:
           containerAppName: webmajiang-202503170914-ca
           resourceGroup: webmajiang-202503170914-rg
-          imageToDeploy: ghcr.io/dahlia1209/webmajiang-server:${{ github.sha }}
+          imageToDeploy: ghcr.io/dahlia1209/webmajiang-server:latest
